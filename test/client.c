@@ -223,7 +223,7 @@ void del(const char *k)
 		if (cod == ENOTFOUND) {
 			fprintf(stderr, "ENOTFOUND\n");
 			exit(1);
-		} else if cod != OK)
+		} else if (cod != OK)
 			die("error en pedido, devolvió %i", cod);
 
 		fprintf(stderr, "\nOK\n");
@@ -353,4 +353,4 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-(
+
