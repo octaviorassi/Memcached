@@ -22,7 +22,7 @@ LRUNode lru_add_to_head(LRUNode node, LRUQueue q);
 LRUNode lru_node_clean(LRUNode node);
 
 // @brief: Desplaza el nodo objetivo al principio de la cola.
-LRUNode lru_move_to_head(LRUNode node, LRUQueue q)
+LRUNode lru_move_to_head(LRUNode node, LRUQueue q);
 
 /* 
 // @brief: Destruye la LRU liberando su memoria.

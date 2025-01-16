@@ -13,7 +13,7 @@ struct LRUQueue {
 
 };
 
-inline LRUQueue lru_init() { return NULL; };
+inline LRUQueue lru_init() { return NULL; }
 
 LRUNode lru_add_to_head(LRUNode node, LRUQueue q) { return NULL; }
 

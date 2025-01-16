@@ -10,8 +10,6 @@ LRUHashNode lru_hash_node_create(int key, int val);
 // @brief: Libera la memoria asociada al nodo objetivo.
 int lru_hash_node_destroy(LRUHashNode node);
 
-
-
 // ! getters
 
 // @brief Obtiene la clave del nodo.
