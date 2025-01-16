@@ -1,37 +1,39 @@
-# Compiler and flags
+# Compiler settings
 CC = gcc
-CFLAGS = -std=c99 -g  # Add debugging info with -g if needed
+CFLAGS = -std=c99 -g
 
 # Directories
 SRC_DIR = src
 BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/cache
+APP_DIR = $(SRC_DIR)/app
+OBJ_FILES = $(OBJ_DIR)/cache.o $(BUILD_DIR)/app/main.o  # Add main.o from src/app
 
-# Source files
-SRCS = $(SRC_DIR)/cache/cache.c $(SRC_DIR)/hash/hash.c $(SRC_DIR)/lru/lru.c $(SRC_DIR)/nodes/nodes.c
-
-# Object files (generated from source files)
-OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
+# Include paths
+INCLUDES = -Isrc/lru -Isrc/hash -Isrc/nodes -Isrc/cache -Isrc
 
 # Target executable
-TARGET = my_program
+TARGET = memcached
 
-# Rules
-
-# Default target (build the target executable)
+# Default target
 all: $(TARGET)
 
-# Linking the object files into the final executable
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET)
+# Rule to compile cache files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/cache/%.c
+	@mkdir -p $(OBJ_DIR)  # Create the directory if it doesn't exist
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-# Rule to compile each .c file into a .o file
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(BUILD_DIR)  # Create build directory if it doesn't exist
-	$(CC) $(CFLAGS) -I$(SRC_DIR)/lru -I$(SRC_DIR)/hash -I$(SRC_DIR)/nodes -I$(SRC_DIR)/cache -c $< -o $@
+# Rule to compile main.c from src/app
+$(BUILD_DIR)/app/main.o: $(APP_DIR)/main.c
+	@mkdir -p $(BUILD_DIR)/app  # Create the directory if it doesn't exist
+	$(CC) $(CFLAGS) $(INCLUDES) -c $(APP_DIR)/main.c -o $(BUILD_DIR)/app/main.o
 
-# Clean the build directory and remove the target executable
+# Linking rule to create the executable
+$(TARGET): $(OBJ_FILES)
+	$(CC) $(OBJ_FILES) -o $(TARGET)
+
+# Clean up
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
 
-# Phony targets (not actual files)
 .PHONY: all clean
