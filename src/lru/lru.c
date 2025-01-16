@@ -46,9 +46,24 @@ void lru_node_destroy(LRUNode node) {
   }
 
   hash_node_destroy(node->hashNode);
+
+  // Conecto los nodos adyacentes entre si
+  // ! PROBLEMA: Cuando estoy destruyendo la queue por completo no me interesa hacer esta reconexion
+  // ! Podria ser opcional segun una bandera que se pase como argumento al destroy?
+  if (node->prev) node->prev->next = node->next;
+  if (node->next) node->next->prev = node->prev;
+
+  // Y finalmente libero el nodo
   free(node);
 }
 
+inline int lru_node_key_isequal(LRUNode node, int k) {
+  
+  if (node == NULL) return 0;
+
+  return hash_node_get_key(node->hashNode) == k;
+
+}
 
 LRUQueue lru_queue_init() { 
 
@@ -98,7 +113,31 @@ void lru_queue_insert(LRUQueue q, HashNode hashNode) {
 // ! Cuantos eliminar? Si me pasan 0 como argumento elimino el ultimo, si es mayor a 0 busco el que me pidieron?
 void lru_queue_free_space(LRUQueue q, int key);
 
-void lru_queue_delete(LRUQueue q, int k);
+// ! Obs: esta funcion es O(n), pero no importa porque no es la funcion que vamos a usar normalmente para eliminar
+// ! la que vamos a usar para eliminar y es importante para la estructura es free_space, y va a ser O(1).
+void lru_queue_delete(LRUQueue q, int k) {
+
+  if (q == NULL) {
+    return;
+  }
+
+  pthread_mutex_lock(&q->lock);
+
+  LRUNode tmp = q->first;
+  int found = tmp == NULL ? 0 : lru_node_key_isequal(tmp, k);
+
+  while (tmp && !found) {
+    tmp = tmp->next;
+    found = lru_node_key_isequal(tmp, k)
+  }
+
+  // Al salir, si found es true entonces tmp es el nodo buscado
+  // ! PROBLEMA: Esto destruye tambien el hashnode asociado, entonces al deletear de la lru_queue
+  // ! no hay que deletear el nodo de la lista de hashnodes, solo llamar a lru_queue_delete.
+  lru_node_destroy(tmp);
+
+
+}
 
 
 // ! Es mejor si la LRUQueue destruye la BucketList o la BucketList destruye a la LRU?
@@ -110,6 +149,7 @@ void lru_queue_destroy(LRUQueue q) {
   }
 
   // ! Seria buena idea tomar el lock mientras elimino los nodos, y por ultimo devolverlo y liberarlo?
+  pthread_mutex_lock(&q->lock);
   LRUNode tmp = q->first;
   LRUNode next;
 
@@ -119,6 +159,7 @@ void lru_queue_destroy(LRUQueue q) {
     tmp = next;
   }
 
+  pthread_mutex_unlock(&q->lock);
   pthread_mutex_destroy(&q->lock);
 
   free(q);

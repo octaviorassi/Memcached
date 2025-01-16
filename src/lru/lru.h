@@ -11,9 +11,9 @@ typedef struct _LRUQueue* LRUQueue;
     @param[in]: es la informacion del hashNode asociada al nuevo LRUNode a crear */
 LRUNode lru_node_create(LRUNode prev, LRUNode next, HashNode hashNode);
 
-// @brief: Libera un LRUNode de manera no-recursiva.
+/*  @brief: Libera un LRUNode de manera no-recursiva.
+    IMPORTANTE: Destruye a su HashNode asociado en el proceso, invocando a hash_node_destroy    */
 void lru_node_destroy(LRUNode node);
-
 
 // @brief: Inicializa una LRU vacia.
 LRUQueue lru_queue_init();
