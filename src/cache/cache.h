@@ -1,8 +1,8 @@
-#ifndef __HASH_H__
-#define __HASH_H__
+#ifndef __CACHE_H__
+#define __CACHE_H__
 
 
-typedef struct _Cache* Cache;
+typedef struct Cache* Cache;
 
 
 // @brief:
@@ -21,4 +21,4 @@ void cache_stats(Cache cache);
 
 void cache_destroy(Cache cache);
 
-#endif // __HASH_H__
+#endif // __CACHE_H__

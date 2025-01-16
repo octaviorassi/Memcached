@@ -1,24 +1,32 @@
 #ifndef __LRU_H__
 #define __LRU_H__
 
-typedef struct _LRUNode* LRUNode;
+#include "nodes.h"
 
-typedef LRUNode LRUQueue;
+// ! LRUNode no es mas que otro nombre para la estructura mas general, LRUHashNode
+typedef LRUHashNode LRUNode;
+
+typedef struct LRUQueue* LRUQueue;
 
 // @brief: Inicializa una LRU vacia.
-LRUQueue lru_init();
+LRUQueue lru_queue_init();
+
+// @brief: Obtiene el ultimo elemento de la cola, i.e. el menos usado
+LRUNode lru_queue_get_last(LRUQueue q);
 
 // @brief: Inicializa una LRU vacia.
-LRUNode lru_insert(LRUQueue q, int key, int value);
+LRUNode lru_add_to_head(LRUNode node, LRUQueue q);
 
-// @brief: Eliminar al elemento con menos prioridad de la cola.
-void lru_free_space(LRUQueue q, int key);
+// @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion),
+// reconectando su nodo predecesor y sucesor de ser necesario.
+LRUNode lru_node_clean(LRUNode node);
 
-// @brief Elimina el elemento asociado a la clave de la cola.
-// @params[in] k La clave del elemento a eliminar
-void lru_delete(LRUQueue q, int k);
+// @brief: Desplaza el nodo objetivo al principio de la cola.
+LRUNode lru_move_to_head(LRUNode node, LRUQueue q)
 
+/* 
 // @brief: Destruye la LRU liberando su memoria.
 void lru_destroy(LRUQueue q);
+*/
 
 #endif // __LRU_H__

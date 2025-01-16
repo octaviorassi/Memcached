@@ -1,37 +1,26 @@
 #include "lru.h"
-#include "../list/list.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-struct _LRUNode {
 
-  struct _LRUNode* prev;
-  struct _LRUNode* next;
-
-  HashNode hashNode;
-};
-
-
-struct _LRUQueue {
-
-  pthread_mutex_t lock;
+struct LRUQueue {
 
   LRUNode start;
   LRUNode end;
+
+  pthread_mutex_t lock;
 
 };
 
 inline LRUQueue lru_init() { return NULL; };
 
-LRUNode lru_insert(LRUQueue q, int key, int value) {
+LRUNode lru_add_to_head(LRUNode node, LRUQueue q) { return NULL; }
 
-  return NULL;
-}
+LRUNode lru_node_clean(LRUNode node) { return NULL; }
 
-void lru_free_space(LRUQueue q, int key);
+LRUNode lru_move_to_head(LRUNode node, LRUQueue q) { return NULL; }
 
-void lru_delete(LRUQueue q, int k);
+LRUNode lru_queue_get_last(LRUQueue q) { return NULL; }
 
-void lru_destroy(LRUQueue q);
 
