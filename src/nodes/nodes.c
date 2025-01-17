@@ -4,7 +4,7 @@
 struct LRUHashNode {
 
   int key;
-  int value;
+  int val;
 
   struct LRUHashNode *lru_prev, *lru_next;
 
@@ -13,12 +13,33 @@ struct LRUHashNode {
 };
 
 
-// TODO
-LRUHashNode lru_hash_node_create(int key, int val) { return NULL; }
+LRUHashNode lru_hash_node_create(int key, int val) { 
+  
+  LRUHashNode node = malloc(sizeof(struct LRUHashNode));
+
+  if (node == NULL)
+    return NULL;
+
+  // Inicializamos todos los punteros a NULL y setteamos los valores de key y val
+  memset(node, 0, sizeof(struct LRUHashNode));
+
+  node->key = key;
+  node->val = val;
+
+  return node;
+}
 
 
-// TODO
-int lru_hash_node_destroy(LRUHashNode node) { return 0; }
+int lru_hash_node_destroy(LRUHashNode node) { 
+
+  if (node == NULL) 
+    return 0;
+
+  free(node);
+
+  return 0;
+
+}
 
 
 
@@ -33,7 +54,7 @@ int lru_hash_node_get_key(const struct LRUHashNode* node) {
 }
 
 int lru_hash_node_get_value(const struct LRUHashNode* node) {
-  return node->value;
+  return node->val;
 }
 
 // @brief Obtiene el nodo siguiente en la lista LRU. Retorna NULL si no existe siguiente.
@@ -65,6 +86,48 @@ LRUHashNode lru_hash_node_get_hash_prev(const LRUHashNode node) {
   return node->hash_prev;
 }
 
+
+/*
+  ********************************
+  * Setters para los LRUHashNode *
+  ******************************** 
+*/
+
+void lru_hash_node_set_key(LRUHashNode node, int key) {
+  if (node != NULL) {
+    node->key = key;
+  }
+}
+
+void lru_hash_node_set_value(LRUHashNode node, int val) {
+  if (node != NULL) {
+    node->val = val;
+  }
+}
+
+void lru_hash_node_set_lru_next(LRUHashNode node, LRUHashNode next) {
+  if (node != NULL) {
+    node->lru_next = next;
+  }
+}
+
+void lru_hash_node_set_lru_prev(LRUHashNode node, LRUHashNode prev) {
+  if (node != NULL) {
+    node->lru_prev = prev;
+  }
+}
+
+void lru_hash_node_set_hash_next(LRUHashNode node, LRUHashNode next) {
+  if (node != NULL) {
+    node->hash_next = next;
+  }
+}
+
+void lru_hash_node_set_hash_prev(LRUHashNode node, LRUHashNode prev) {
+  if (node != NULL) {
+    node->hash_prev = prev;
+  }
+}
 
 
 
