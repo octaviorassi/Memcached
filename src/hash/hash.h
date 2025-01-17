@@ -11,6 +11,13 @@ typedef struct HashMap* HashMap;
 
 typedef int (*HashFunction)(int);
 
+
+/// @brief Devuelve el bucket_number asociado a la key en el map.
+int hashmap_find_bucket_number(int key, HashMap map);
+
+/// @brief Devuelve el puntero al bucket asociado al bucket_number objetivo en el HashMap map, o NULL si falla.
+Bucket hashmap_find_bucket(int bucket_number, HashMap map);
+
 // @brief: Crea un nuevo nodo con el par clave-valor y lo inserta en el hashmap. No altera su prioridad,
 // que es inicializada en null. Devuelve el puntero al nodo creado.
 HashNode hashmap_insert(int key, int val, HashMap map);
