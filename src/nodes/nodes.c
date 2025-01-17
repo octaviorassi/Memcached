@@ -42,6 +42,22 @@ int lru_hash_node_destroy(LRUHashNode node) {
 }
 
 
+LookupResult lru_hash_node_lookup(int key, LRUHashNode node) {
+
+  while (node != NULL) {
+  
+    if (key == lru_hash_node_get_key(node))
+      return create_ok_lookup_result(lru_hash_node_get_value(node));
+
+    node = lru_hash_node_get_hash_next(node);
+  
+  }
+
+  return create_error_lookup_result();
+  
+}
+
+
 
 /*
   ********************************

@@ -1,16 +1,19 @@
 #ifndef __NODES_H__
 #define __NODES_H__
 
+#include "../helpers/results.h"
+
 // ! escondemos el struct en el .c y creamos getters en el .h para acceder
 typedef struct LRUHashNode* LRUHashNode;
 
 /// @brief: Crea un nuevo LRUHashNode con el par clave-valor objetivo.
 LRUHashNode lru_hash_node_create(int key, int val);
 
-/** 
- * @brief: Libera la memoria asociada al nodo objetivo. 
- */
+/// @brief: Libera la memoria asociada al nodo objetivo. 
 int lru_hash_node_destroy(LRUHashNode node);
+
+/// @brief Busca linealmente la key en la lista iniciada en node, devolviendo un LookupResult con el resultado.
+LookupResult lru_hash_node_lookup(int key, LRUHashNode node);
 
 // ! getters
 
