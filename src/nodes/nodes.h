@@ -38,22 +38,22 @@ LRUHashNode lru_hash_node_get_hash_next(const LRUHashNode node);
 
 // ! setters
 
-// @brief Establece el valor de la clave del nodo.
+/// @brief Establece el valor de la clave del nodo si este es no nulo.
 void lru_hash_node_set_key(LRUHashNode node, int key);
 
-// @brief Establece el valor del nodo.
+/// @brief Establece el valor del nodo si este es no nulo.
 void lru_hash_node_set_value(LRUHashNode node, int val);
 
-// @brief Establece el puntero al nodo siguiente en la lista LRU.
+/// @brief Establece el puntero al nodo siguiente de lru de \a node con \a next, si \a node es no nulo.
 void lru_hash_node_set_lru_next(LRUHashNode node, LRUHashNode next);
 
-// @brief Establece el puntero al nodo previo en la lista LRU.
+/// @brief Establece el puntero al nodo previo de lru de \a node con \a prev, si \a node es no nulo.
 void lru_hash_node_set_lru_prev(LRUHashNode node, LRUHashNode prev);
 
-// @brief Establece el puntero al nodo siguiente en la lista hash.
+/// @brief Establece el puntero al nodo siguiente de hash de \a node con \a next, si \a node es no nulo.
 void lru_hash_node_set_hash_next(LRUHashNode node, LRUHashNode next);
 
-// @brief Establece el puntero al nodo previo en la lista hash.
+/// @brief Establece el puntero al nodo previo de hash de \a node con \a prev, si \a node es no nulo.
 void lru_hash_node_set_hash_prev(LRUHashNode node, LRUHashNode prev);
 
 
