@@ -8,21 +8,28 @@ typedef LRUHashNode LRUNode;
 
 typedef struct LRUQueue* LRUQueue;
 
-// @brief: Inicializa una LRU vacia.
+/// @brief: Inicializa una LRU vacia.
 LRUQueue lru_queue_init();
 
-// @brief: Obtiene el ultimo elemento de la cola, i.e. el menos usado
-LRUNode lru_queue_get_last(LRUQueue q);
+/// @brief: Obtiene el nodo menos recientemente usado
+LRUNode lru_queue_get_least_recent(LRUQueue q);
 
-// @brief: Inicializa una LRU vacia.
-LRUNode lru_add_to_head(LRUNode node, LRUQueue q);
+/// @brief: Obtiene el nodo mas recientemente usado
+LRUNode lru_queue_get_most_recent(LRUQueue q);
 
-// @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion),
-// reconectando su nodo predecesor y sucesor de ser necesario.
-LRUNode lru_node_clean(LRUNode node);
+/// @brief: Inserta un nuevo nodo \a node como el mas reciente de la cola \a q.
+/// @return: El puntero al nodo insertado, o NULL en caso de error.s
+LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q);
 
-// @brief: Desplaza el nodo objetivo al principio de la cola.
-LRUNode lru_move_to_head(LRUNode node, LRUQueue q);
+/** 
+ *  @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion o relocacion),
+ *  reconectando su nodo predecesor y sucesor de ser necesario.
+ *  @return 0 si es exitoso, -1 si se produjo un error relacionado al mutex de \a q.
+ **/
+int lru_queue_node_clean(LRUNode node, LRUQueue q);
+
+/// @brief: Desplaza el nodo objetivo al principio de la cola.
+LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q);
 
 /* 
 // @brief: Destruye la LRU liberando su memoria.
