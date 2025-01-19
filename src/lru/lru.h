@@ -9,7 +9,7 @@ typedef LRUHashNode LRUNode;
 typedef struct LRUQueue* LRUQueue;
 
 /// @brief: Inicializa una LRU vacia.
-LRUQueue lru_queue_init();
+LRUQueue lru_queue_create();
 
 /// @brief: Obtiene el nodo menos recientemente usado
 LRUNode lru_queue_get_least_recent(LRUQueue q);

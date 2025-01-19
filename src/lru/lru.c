@@ -14,7 +14,7 @@ struct LRUQueue {
 
 };
 
-LRUQueue lru_queue_init() { 
+LRUQueue lru_queue_create() { 
   
   pthread_mutex_t* lock = malloc(sizeof(pthread_mutex_t));
   if (lock == NULL)
