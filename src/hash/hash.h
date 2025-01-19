@@ -11,6 +11,10 @@ typedef struct HashMap* HashMap;
 
 typedef int (*HashFunction)(int);
 
+int placeholder_hash(int n) { return n; }
+
+/// @brief Crea un HashMap con funcion de hash \a hash y cantidad de buckets \a n_buckets.
+HashMap hashmap_create(HashFunction hash, int n_buckets);
 
 /// @brief Devuelve el bucket_number asociado a la key en el map.
 int hashmap_find_bucket_number(int key, HashMap map);
@@ -24,7 +28,11 @@ HashNode hashmap_insert(int key, int val, HashMap map);
 
 // ! Ver que hacer si no existe en el mapa. Podriamos avisar por errno??
 // @brief: Busca la clave en el HashMap objetivo, retornando su valor asociado, si es que existe.
-int hashmap_lookup(int key, HashMap map);
+LookupResult hashmap_lookup(int key, HashMap map);
+
+/// @brief Busca la clave en el HashMap objetivo al igual que hashmap_lookup, pero devolviendo un puntero
+//  al nodo en caso de existir, o NULL en caso contrario.
+HashNode hashmap_lookup_node(int key, HashMap map);
 
 // @brief: Elimina el nodo asociado a la clave objetivo del HashMap. Retorna 0 si lo elimina exitosamente,
 // (ver si hacemos algo cuando el nodo no estaba en el hashmap, o si falla por otro motivo)

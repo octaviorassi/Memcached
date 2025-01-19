@@ -1,10 +1,16 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hash.h"
 #include "../helpers/results.h"
 
 #define N_LOCKS 10
+
+// ? HashNode es literalmente un LRUHashNode. Tiene sentido rehacer la interfaz de LRUHashNode pero llamandola
+// ? solo HashNode? 
+// ? Por ejemplo
+// ?    int hashnode_get_value(HashNode node) { return lru_hash_node_get_val(node); }
 
 struct HashMap {
 
@@ -15,6 +21,42 @@ struct HashMap {
     pthread_mutex_t*    zone_locks[N_LOCKS];
 
 };
+
+// todo: ver mejor que argumentos pasar/son necesarios
+HashMap hashmap_create(HashFunction hash, int n_buckets) {
+
+    HashMap map = malloc(sizeof(struct HashMap));
+
+    if (map == NULL)
+        return NULL;
+
+    memset(map, 0, sizeof(struct HashMap));
+    
+    map->hash_function = hash;
+
+    // Asigno memoria para los buckets, no hace falta inicializarlos, el insert lo hara.
+    // ! Chequear si no hay un tema con la memoria:
+    // ! En el HashMap asigno memoria para n_buckets punteros a struct LRUHashNode
+    // ! Es decir, n_buckets * sizeof(puntero) bytes
+    // ! Despues cuando inserto, asigno memoria para un struct LRUHashNode (el STRUCT, no el puntero)
+    // ! y ahi manipulo los punteros.
+    Bucket* buckets = malloc(sizeof(Bucket) * n_buckets);
+    if (buckets == NULL)
+        return NULL;
+
+    map->n_buckets = n_buckets;
+    // ? memset a 0 de buckets es necesario?
+
+    // Inicializo los locks
+    int mutex_error = 0;
+    for (int i = 0; i < N_LOCKS; i++) 
+        mutex_error = mutex_error || pthread_mutex_init(map->zone_locks[i], NULL);
+        // ? el cortocircuito del OR haria que no se evalue el init? seria buenisimo
+
+
+    // no se si me gusta mas este ternario o hacer un if mas chequeando mutex_error y listo
+    return mutex_error ? NULL : map;
+}
 
 // ! podria ser unsigned int, pero quiero poder devolver -1 por si falla algo
 // ! tambien podria obviar esta funcion y hacer directamente una que devuelva el puntero al bucket correspondiente
@@ -96,6 +138,19 @@ LookupResult hashmap_lookup(int key, HashMap map) {
     return lru_hash_node_lookup(key, hashmap_find_bucket(bucket_number, map));
 
 }
+
+HashNode hashmap_lookup_node(int key, HashMap map) {
+    if (map == NULL)
+        return NULL;
+
+    int bucket_number = hashmap_find_bucket_number(key, map);
+
+    if (bucket_number < 0)
+       return NULL;
+
+    // aca necesito lru_hash_node_lookup_node()
+}
+
 
 // todo
 int hashmap_delete(int key, HashMap map) { return 0; }
