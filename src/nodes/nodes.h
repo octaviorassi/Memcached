@@ -12,8 +12,13 @@ LRUHashNode lru_hash_node_create(int key, int val);
 /// @brief: Libera la memoria asociada al nodo objetivo. 
 int lru_hash_node_destroy(LRUHashNode node);
 
-/// @brief Busca linealmente la key en la lista iniciada en node, devolviendo un LookupResult con el resultado.
+/// @brief Busca linealmente la key en la lista iniciada en \a node, devolviendo un LookupResult con el resultado.
 LookupResult lru_hash_node_lookup(int key, LRUHashNode node);
+
+/// @brief BUsca linealmente la key en la lista iniciada en \a node, devolviendo el puntero al nodo en caso
+/// de encontrarlo, o NULL en caso contrario.
+LRUHashNode lru_hash_node_lookup_node(int key, LRUHashNode node);
+
 
 // ! getters
 
