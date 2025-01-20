@@ -15,7 +15,7 @@ LookupResult cache_get(Cache cache, int key);
 
 /// @brief Inserta el par clave-valor en la cache dada. De no contarse con espacio suficiente, 
 /// aplica la politica de desalojo para generarlo.
-void cache_put(Cache cache, int key, int value);
+int cache_put(Cache cache, int key, int value);
 
 
 /// @brief Elimina el par clave-valor asociado a \a key en la cache objetivo. 
