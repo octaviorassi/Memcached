@@ -175,23 +175,6 @@ HashNode hashmap_lookup_node(int key, HashMap map) {
     return node;
 }
 */
-
-int hashmap_clean_node(HashNode node, HashMap map) {
-
-  if (node == NULL || map == NULL)
-    return -1;
-  
-  // Desconectamos y reconectamos los adyacentes
-  HashNode prev = hashnode_get_prev(node);
-  HashNode next = hashnode_get_next(node);
-
-  hash_node_set_next(prev, next);
-  hash_node_set_prev(next, prev);
-
-  return 0;
-
-}
-
 // todo
 int hashmap_delete_node(int key, HashMap map) { 
 

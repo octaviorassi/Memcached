@@ -74,19 +74,6 @@ HashNode hashmap_insert(int key, int val, HashMap map);
 LookupResult hashmap_lookup(int key, HashMap map);
 
 
-/**
- * @brief Desconecta al nodo objetivo de su bucket, reconectando a sus nodos adyacentes..
- * 
- * IMPORTANTE: Esta funcion NO es thread-safe. Debe pedirse el mutex asociado a la clave antes de invocarla, y
- * liberarlo tras terminada la ejecucion.
- * 
- * @param node Nodo a limpiar.
- * @param map HashMap objetivo.
- * @return 0 si es exitoso, 1 si se produjo un error.
- */
-int hashmap_clean_node(HashNode node, HashMap map);
-
-
 /*
 /// @brief Busca la clave en el HashMap objetivo al igual que hashmap_lookup, pero devolviendo un puntero
 //  al nodo en caso de existir, o NULL en caso contrario.

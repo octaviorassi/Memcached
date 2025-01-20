@@ -24,9 +24,48 @@ HashNode hashnode_create(int key, int val) {
 
 }
 
-void hashnode_destroy(HashNode node) { return; }
+void hashnode_destroy(HashNode node) { 
 
-LookupResult hashnode_lookup(int key, HashNode node) { return create_miss_lookup_result(); }
+    if (node == NULL)
+        return;
+
+    free(node);
+
+}
+
+LookupResult hashnode_lookup(int key, HashNode node) { 
+
+    if (node == NULL)
+        return create_miss_lookup_result();
+
+    int found = hashnode_get_key(node) == key;
+
+    while (node && !found) {
+        node  = hashnode_get_next(node);
+        found = hashnode_get_key(node) == key;
+    }
+
+    return found ? create_ok_lookup_result(hashnode_get_val(node)) :
+                   create_miss_lookup_result();
+}
+
+
+int hashnode_clean(HashNode node) {
+
+  if (node == NULL)
+    return -1;
+  
+  // Desconectamos y reconectamos los adyacentes
+  HashNode prev = hashnode_get_prev(node);
+  HashNode next = hashnode_get_next(node);
+
+  hash_node_set_next(prev, next);
+  hash_node_set_prev(next, prev);
+
+  return 0;
+
+}
+
 
 int hashnode_get_key(HashNode node) {
     return node->key;

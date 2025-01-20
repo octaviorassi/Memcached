@@ -20,7 +20,7 @@ typedef struct HashNode* HashNode;
 HashNode hashnode_create(int key, int val);
 
 /**
- * @brief Destruye el nodo objetivo, liberando la memoria asociada.
+ * @brief Destruye el nodo objetivo, liberando la memoria asociada. Se asume que el nodo ya esta 'limpio'.
  * @param node El nodo a destruir.
  */
 void hashnode_destroy(HashNode node);
@@ -29,8 +29,6 @@ void hashnode_destroy(HashNode node);
 /**
  * @brief Busca el valor asociado a la clave en el bucket iniciado en \a node.
  * 
- * IMPORTANTE: Esta funcion es thread-safe. No debe pedirse el mutex asociado al nodo antes de invocarla, ni
- * liberarlo tras terminada la ejecucion.
  * @param key Clave a buscar.
  * @param node Bucket inicial.
  * @return Un \a LookupResult con el valor asociado y un status reflejando si la busqueda fue exitosa,
@@ -38,6 +36,16 @@ void hashnode_destroy(HashNode node);
  */
 LookupResult hashnode_lookup(int key, HashNode node);
 
+/**
+ * @brief Desconecta al nodo objetivo de sus vecinos, reconectando a sus nodos adyacentes.
+ * 
+ * IMPORTANTE: Esta funcion NO es thread-safe. Debe pedirse el mutex asociado a la clave antes de invocarla, y
+ * liberarlo tras terminada la ejecucion.
+ * 
+ * @param node Nodo a limpiar.
+ * @return 0 si es exitoso, 1 si se produjo un error.
+ */
+int hashnode_clean(HashNode node);
 
 
 /**
