@@ -36,7 +36,7 @@ HashNode hashmap_lookup_node(int key, HashMap map);
 
 // @brief: Elimina el nodo asociado a la clave objetivo del HashMap. Retorna 0 si lo elimina exitosamente,
 // (ver si hacemos algo cuando el nodo no estaba en el hashmap, o si falla por otro motivo)
-int hashmap_delete(int key, HashMap map);
+int hashmap_delete_node(int key, HashMap map);
 
 // ? hashmap_update la definimos, o la hacemos directo con insert?
 

@@ -18,7 +18,13 @@ struct HashMap {
 
     Bucket*             buckets;
     int                 n_buckets;
-    pthread_mutex_t*    zone_locks[N_LOCKS];
+    pthread_mutex_t*    zone_locks[N_LOCKS];  
+
+    // Obs: la semantica de los locks es que protegen a todos los campos menos los relacionados a la lru
+    // es decir, si tengo el lock sobre un bucket, puedo modificar key, val, hash_prev, hash_next.
+    // Pero ademas, es ese mismo lock el que te habilita a deletear; la LRU no tiene derecho a eliminar nodos,
+    // solo puede alterar la informacion de sus campos lru_prev y lru_next.
+    // Por eso, la semantica de tomar un lock de LRU es poder modificar esos campos y NADA MAS.
 
 };
 
@@ -53,7 +59,6 @@ HashMap hashmap_create(HashFunction hash, int n_buckets) {
         mutex_error = mutex_error || pthread_mutex_init(map->zone_locks[i], NULL);
         // ? el cortocircuito del OR haria que no se evalue el init? seria buenisimo
 
-
     // no se si me gusta mas este ternario o hacer un if mas chequeando mutex_error y listo
     return mutex_error ? NULL : map;
 }
@@ -75,6 +80,27 @@ Bucket hashmap_find_bucket(int bucket_number, HashMap map) {
     if (map == NULL || map->buckets == NULL)
         return NULL;
 
+    // !!!!!! Aca hace falta pedir el lock
+    /* pthread_mutex_t* bucket_mutex = hashmap_get_zone_mutex(bucket_number, map);
+    if (pthread_mutex_lock(bucket_mutex) != 0)
+      return NULL;
+    */
+
+    // ! Aca podria haber un race condition?
+    // ! Al desreferenciar map->buckets[bucket_number]
+    // ! puede que:
+    // !  1. Ya no sea el inicio del bucket
+    // !  2. Sea el inicio, pero entre que es devuelto y es usado, otro hilo lo deletea, volviendolo NULL.
+    
+    // !  (1) No es tan grave, porque siempre una vez pedido el bucket la busqueda es lineal hacia adelante
+    // !  luego si el bucket cambio, es porque se inserto un nuevo dato, y ese dato no deberia ser visible
+    // !  para el proceso que pidio el bucket antes de todas formas.
+    // !  (2) Si es grave, pero ademas pedir el lock no resuelve el problema tampoco. En todo caso,
+    // !  esta funcion deberia quedar obsoleta, y hacer tanto el pedido del bucket como el lookup dentro
+    // !  de una misma funcion.
+
+    // !  SI NO, una posible solucion seria que hashmap_find_bucket tome el lock y no lo devuelva al retornar.
+    // !  Es decir, que devuelva el bucket buscado y su lock tomado. Y si algo falla, libera el lock y devuelve NULL.
     return bucket_number < 0 ? NULL : map->buckets[bucket_number];
 
 }
@@ -84,6 +110,7 @@ pthread_mutex_t* hashmap_get_zone_mutex(int bucket_number, HashMap map) {
     return NULL;
 }
 
+// !!! ESTOY INSERTANDO SIN VER SI YA ESTABA.
 HashNode hashmap_insert(int key, int val, HashMap map) { 
 
     HashNode node = lru_hash_node_create(key, val);
@@ -135,11 +162,13 @@ LookupResult hashmap_lookup(int key, HashMap map) {
     if (bucket_number < 0)
        return create_error_lookup_result();
 
+    // ! revisar mutex
     return lru_hash_node_lookup(key, hashmap_find_bucket(bucket_number, map));
 
 }
 
 HashNode hashmap_lookup_node(int key, HashMap map) {
+
     if (map == NULL)
         return NULL;
 
@@ -148,9 +177,55 @@ HashNode hashmap_lookup_node(int key, HashMap map) {
     if (bucket_number < 0)
        return NULL;
 
-    // aca necesito lru_hash_node_lookup_node()
+    pthread_mutex_t* mutex = hashmap_get_zone_mutex(bucket_number, map);
+    if (pthread_mutex_lock(mutex) != 0)
+        return NULL;
+
+    Bucket bucket = hashmap_find_bucket(bucket_number, map);
+
+    HashNode node = lru_hash_node_lookup_node(key, bucket);
+
+    if (pthread_mutex_unlock(mutex) != 0)
+        return NULL;
+
+    return node;
 }
 
+int hashmap_clean_node(HashNode node, HashMap map) {
+
+  if (node == NULL || map == NULL)
+    return -1;
+  
+  // Tomo el mutex
+  int bucket_number = hashmap_find_bucket_number(lru_hash_node_get_key(node), map);
+
+  if (bucket_number < 0)
+    return -1;
+  
+  pthread_mutex_t* mutex = hashmap_get_zone_mutex(bucket_number, map);
+  if (pthread_mutex_lock(mutex) != 0)
+    return -1;
+
+  // Desconectamos y reconectamos los adyacentes
+  HashNode prev = lru_hash_node_get_hash_prev(node);
+  HashNode next = lru_hash_node_get_hash_next(node);
+
+  lru_hash_node_set_hash_next(prev, next);
+  lru_hash_node_set_hash_prev(next, prev);
+
+  // Devolvemos el lock y retornamos
+  if (pthread_mutex_unlock(mutex) != 0)
+    return -1;
+
+  return 0;
+
+}
 
 // todo
-int hashmap_delete(int key, HashMap map) { return 0; }
+int hashmap_delete_node(int key, HashMap map) { 
+
+    // ! SETTEAR EL NODE A NULL ANTE DE HACER FREE
+
+    return 0;
+
+}
