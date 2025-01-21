@@ -1,24 +1,32 @@
 #include <stdio.h>
 #include <string.h>
 #include "hashnode.h"
+#include "lrunode.h"
 
 struct HashNode {
     int key, val;
     struct HashNode* prev;
     struct HashNode* next;
+    struct LRUNode* prio;
 };
 
 HashNode hashnode_create(int key, int val) {
 
     HashNode node = malloc(sizeof(struct HashNode));
-
     if (node == NULL)
         return NULL;
 
+    LRUNode prio = lrunode_create();
+    if (prio == NULL) {
+        free(node);
+        return NULL;
+    }
+
     memset(node, 0, sizeof(struct HashNode));
 
-    node->key = key;
-    node->val = val;
+    node->key   = key;
+    node->val   = val;
+    node->prio  = prio;
 
     return node;
 
@@ -49,6 +57,22 @@ LookupResult hashnode_lookup(int key, HashNode node) {
                    create_miss_lookup_result();
 }
 
+HashNode hashnode_lookup_node(int key, HashNode node) {
+
+    if (node == NULL)
+        return NULL;
+
+    int found = hashnode_get_key(node) == key;
+
+    while (node && !found) {
+        node  = hashnode_get_next(node);
+        found = hashnode_get_key(node) == key;
+    }
+
+    // Si no lo encontre, node es NULL. Si lo encontre, node es el buscado.
+    return node;
+    
+}
 
 int hashnode_clean(HashNode node) {
 

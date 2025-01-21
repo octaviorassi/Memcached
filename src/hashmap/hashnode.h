@@ -37,6 +37,15 @@ void hashnode_destroy(HashNode node);
 LookupResult hashnode_lookup(int key, HashNode node);
 
 /**
+ * @brief Busca el puntero al nodo asociado a la clave en el bucket iniciado en \a node.
+ * 
+ * @param key Clave a buscar.
+ * @param node Bucket inicial.
+ * @return Un puntero al nodo buscado, que es NULL en caso de no encontrarse.
+ */
+HashNode hashnode_lookup_node(int key, HashNode node);
+
+/**
  * @brief Desconecta al nodo objetivo de sus vecinos, reconectando a sus nodos adyacentes.
  * 
  * IMPORTANTE: Esta funcion NO es thread-safe. Debe pedirse el mutex asociado a la clave antes de invocarla, y
@@ -104,5 +113,18 @@ HashNode hashnode_get_next(HashNode node);
  */
 void hashnode_set_next(HashNode node, HashNode next);
 
+/**
+ * @brief Obtiene el puntero al nodo de prioridad asociado.
+ * @param node Puntero al nodo objetivo.
+ * @return Puntero a su nodo de prioridad.
+ */
+LRUNode hashnode_get_prio(HashNode node);
+
+/**
+ * @brief Establece el puntero al nodo de prioridad.
+ * @param node Puntero al nodo objetivo.
+ * @param prio Puntero al nodo de prioridad.
+ */
+void hashnode_set_prio(HashNode node, LRUNode prio);
 
 #endif // __HASH_NODE_H__
