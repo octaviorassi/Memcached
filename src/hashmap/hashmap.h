@@ -20,12 +20,21 @@ HashMap hashmap_create(HashFunction hash, int n_buckets);
 int hashmap_get_bucket_number(int key, HashMap map);
 
 /**
- * @brief Bloquea el mutex asociado al nodo en el mapa hash. 
- * @param node Puntero al nodo del mapa hash.
+ * @brief Bloquea el mutex asociado a la clave en el mapa hash. 
+ * @param key Clave objetivo.
  * @param map Puntero al mapa hash.
  * @return 0 si el bloqueo es exitoso (es decir, se posee el mutex), -1 en caso de error.
  */
-int hashmap_get_node_lock(HashNode node, HashMap map);
+int hashmap_get_key_lock(int key, HashMap map);
+
+
+/**
+ * @brief Libera el mutex asociado a la clave en el mapa hash. 
+ * @param key Clave objetivo.
+ * @param map Puntero al mapa hash.
+ * @return 0 si la liberacion es exitosa, -1 en caso de error.
+ */
+int hashmap_release_key_lock(int key, HashMap map);
 
 /// @brief Devuelve el puntero al bucket asociado al bucket_number objetivo en el HashMap map, o NULL si falla.
 
@@ -74,11 +83,22 @@ HashNode hashmap_insert(int key, int val, HashMap map);
 LookupResult hashmap_lookup(int key, HashMap map);
 
 
-/*
 /// @brief Busca la clave en el HashMap objetivo al igual que hashmap_lookup, pero devolviendo un puntero
 //  al nodo en caso de existir, o NULL en caso contrario.
+
+/**
+ * @brief Busca el puntero al nodo asociado a la clave en el HashMap.
+ * 
+ * IMPORTANTE: En caso de encontrarlo, ademas se obtiene su mutex asociado, y
+ * es responsabilidad del llamante liberarlo posteriormente.
+ * Esta funcion es thread-safe.
+ * 
+ * @param key Clave buscada.
+ * @param map HashMap objetivo.
+ * @return Un puntero al nodo buscado, que es NULL en caso de
+ * no encontrarlo.
+ */
 HashNode hashmap_lookup_node(int key, HashMap map);
-*/
 
 
 // @brief: Elimina el nodo asociado a la clave objetivo del HashMap. Retorna 0 si lo elimina exitosamente,

@@ -56,6 +56,7 @@ int hashmap_get_bucket_number(int key, HashMap map) {
 
 }
 
+// ? podria devolver el bucket_number en caso exitoso, para ahorrar volver a calcularlo.
 int hashmap_get_key_lock(int key, HashMap map) {
 
     if (map == NULL)
@@ -71,7 +72,7 @@ int hashmap_get_key_lock(int key, HashMap map) {
     return 0;
 }
 
-int hashmap_release_node_lock(int key, HashMap map) {
+int hashmap_release_key_lock(int key, HashMap map) {
 
     if (map == NULL)
         return -1;
@@ -154,7 +155,7 @@ LookupResult hashmap_lookup(int key, HashMap map) {
 
 }
 
-/*
+
 HashNode hashmap_lookup_node(int key, HashMap map) {
 
     if (map == NULL)
@@ -165,16 +166,15 @@ HashNode hashmap_lookup_node(int key, HashMap map) {
     if (bucket_number < 0)
        return NULL;
 
+    /*  Aca obtenemos el mutex ademas del bucket, y no lo liberamos,
+        pues se preserva tras el llamado a funcion. */
     HashNode bucket = hashmap_get_bucket(bucket_number, map);
 
     HashNode node = hashnode_lookup_node(key, bucket);
 
-    if (pthread_mutex_unlock(mutex) != 0)
-        return NULL;
-
     return node;
 }
-*/
+
 // todo
 int hashmap_delete_node(int key, HashMap map) { 
 
