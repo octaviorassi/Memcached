@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "cache.h"
 #include "../lru/lru.h"
-#include "../hash/hash.h"
+#include "../hashmap/hashmap.h"
 #include <pthread.h>
 
 // ? borrar
@@ -52,6 +52,7 @@ LookupResult cache_get(Cache cache, int key) {
 
   if (cache == NULL)
     return create_error_lookup_result();
+
   /**
    * 1. Buscar la key en el hashmap.
    * 2. Si hittea, actualizo la prioridad en la LRUQueue y retorno un LookupResult exitoso.
@@ -61,61 +62,48 @@ LookupResult cache_get(Cache cache, int key) {
    * Para ello, HashMap deberia ofrecer una funcion que devuelva el puntero en vez de la key/
    */
 
+  // Obs: al salir de hashmap_lookup_node contamos con su mutex si el nodo fue encontrado.
   HashNode node = hashmap_lookup_node(key, cache->map);
-  if (node == NULL)
+  if (node == NULL) 
     return create_miss_lookup_result();
 
-  // Si devuelve NULL hubo un error
-  if (lru_queue_set_most_recent(node, cache->queue))
-    return create_ok_lookup_result(lru_hash_node_get_value(node));
+  int val = hashnode_get_val(node);
 
-  return create_error_lookup_result();
+  // ! Problema: puede ser que entre que encuentro el resultado y actualizo su prioridad, 
+  // ! otro proceso aplique la politica de desalojo y borre este nodo. No se si deberiamos evitarlo o no.
+  int lru_status = lru_queue_set_most_recent(node, cache->queue);
+
+  int lock_status = hashmap_release_key_lock(key, cache->map);
+
+  if (lru_status != 0 || lock_status != 0)
+    return create_error_lookup_result();
+
+  return create_ok_lookup_result(val);
+
 }
 
+// ! La logica de este put esta mal en general, lo dejo como ejemplo nomas.
+// ! Hay que ver si la clave ya estaba en la cache antes de insertar y demas.
 int cache_put(Cache cache, int key, int val) { 
 
   if (cache == NULL)
     return -1;
-    
-  /**
-   * 1. Inserto en HashMap
-   * 2. Inserto en LRUQueue.
-   * El orden importa: el insert de HashMap es el que le asigna memoria, el de LRUQueue trabaja
-   * sobre un nodo ya creado.
-   */
 
+  // Obtenemos el mutex asociado a la key
+  if (hashmap_get_key_lock(key, cache->map) != 0)
+    return -1;
 
   // Insertamos al HashMap
-
-  // hashmap_get_lock
-  // hashmap_insert
-
-  // lru_add
-
-  // hashmap_release_lock
-
   HashNode node = hashmap_insert(key, val, cache->map);
   if (node == NULL)
     return -1;
-
-  /* ******************************************** !!! PROBLEMA !!!
   
-    Que pasa si:
-      Proceso A llega a hacer el hashmap_insert y pierde el control
-      Proceso B deletea al nodo por completo
-      Proceso A retoma el control e intenta ejecutar el lru_queue_add_recent
+  lru_queue_add_recent(node, cache->queue);
 
-    En ese caso, node != NULL, pero la memoria ya esta liberada. Entonces va a desreferenciar
-    una zona de memoria a la que no tiene acceso. Problemas.
-  
-  */
-
-  // Y le setteamos su prioridad
-  if (lru_queue_add_recent(node, cache->queue) == NULL)
-    return -1;
+  if (hashmap_release_key_lock(key, cache->map) != 0)
+    return 1;
 
   return 0;
-
 }
 
 void cache_delete(Cache cache, int key) { 
