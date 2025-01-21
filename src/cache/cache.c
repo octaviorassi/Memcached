@@ -20,25 +20,26 @@ struct Cache {
 
 };
 
-// todo: pasar la funcion hash por argumento, la cantidad de buckets, etc.
-Cache cache_create() { 
+Cache cache_create(HashFunction hash, int n_buckets) { 
 
-  // Asignar memoria para la cache
   Cache cache = malloc(sizeof(struct Cache));
   if (cache == NULL)
     return NULL;
 
-  // Inicializar HashMap
-  HashMap map = hashmap_create(placeholder_hash, N_BUCKETS);
-  if (map == NULL)
+  HashMap map = hashmap_create(hash, n_buckets);
+  if (map == NULL) {
+    free(cache);
     return NULL;
+  }
 
-  // Inicializar LRUQueue
   LRUQueue queue = lru_queue_create();
-  if (queue == NULL)
+  if (queue == NULL) {
+    hashmap_destroy(map);
+    free(cache);
     return NULL;
+  }
 
-  // todo: inicializar stats
+  // todo: pensar que va en stats, es un placeholder esto
   int stats = 0;
 
   cache->map   = map;
@@ -46,9 +47,10 @@ Cache cache_create() {
   cache->stats = stats;
 
   return cache;
+
 }
 
-LookupResult cache_get(Cache cache, int key) { 
+LookupResult cache_get(int key, Cache cache) { 
 
   if (cache == NULL)
     return create_error_lookup_result();
@@ -82,31 +84,40 @@ LookupResult cache_get(Cache cache, int key) {
 
 }
 
-// ! La logica de este put esta mal en general, lo dejo como ejemplo nomas.
-// ! Hay que ver si la clave ya estaba en la cache antes de insertar y demas.
-int cache_put(Cache cache, int key, int val) { 
-
+int cache_put(int key, int val, Cache cache) {
+  // todo: aplicar politica de desalojo
   if (cache == NULL)
     return -1;
 
-  // Obtenemos el mutex asociado a la key
   if (hashmap_get_key_lock(key, cache->map) != 0)
     return -1;
 
-  // Insertamos al HashMap
-  HashNode node = hashmap_insert(key, val, cache->map);
-  if (node == NULL)
-    return -1;
-  
-  lru_queue_add_recent(node, cache->queue);
+  HashNode node = hashmap_update(key, val, cache->map);
 
-  if (hashmap_release_key_lock(key, cache->map) != 0)
-    return 1;
+  // La clave ya tenia un valor asociado en la cache
+  if (node != NULL) {
+    lru_queue_set_most_recent(node, cache->queue);
+    hashmap_release_key_lock(key, cache->map);
+    return 0;
+  }
+
+  // La clave no estaba en la cache, tenemos que insertar
+  node = hashmap_insert(key, val, cache->map);
+
+  if (node == NULL) {
+    hashmap_release_key_lock(key, cache->map);
+    return -1;
+  }
+
+  lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
+
+  hashmap_release_key_lock(key, cache->map);
 
   return 0;
+
 }
 
-void cache_delete(Cache cache, int key) { 
+void cache_delete(int key, Cache cache) { 
 
   /**
    * 0. Buscamos el puntero del nodo en el hashmap. 
