@@ -1,8 +1,9 @@
-#include "lru.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "lru.h"
+#include "lrunode.h"
 
 
 struct LRUQueue {
@@ -67,9 +68,8 @@ LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) {
   if (lru_queue_lock(q) < 0)
     return NULL;
 
-  lru_hash_node_set_lru_prev(node, q->most_recent);
-
-  lru_hash_node_set_lru_next(q->most_recent, node);
+  lrunode_set_prev(node, q->most_recent);
+  lrunode_set_next(q->most_recent, node);
 
   q->most_recent = node; 
 

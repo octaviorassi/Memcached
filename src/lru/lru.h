@@ -1,25 +1,37 @@
 #ifndef __LRU_H__
 #define __LRU_H__
 
-#include "nodes.h"
-
-// ! LRUNode no es mas que otro nombre para la estructura mas general, LRUHashNode
-typedef LRUHashNode LRUNode;
+#include "hashnode.h"
 
 typedef struct LRUQueue* LRUQueue;
 
-/// @brief: Inicializa una LRU vacia.
+typedef struct LRUNode* LRUNode;
+
+/**
+ *  @brief Inicializa una LRU vacia.
+ *  @return La LRUQueue generada.
+ */
 LRUQueue lru_queue_create();
 
-/// @brief: Obtiene el nodo menos recientemente usado
+/**
+ * @brief Obtiene un puntero al nodo menos utilizado.
+ * 
+ * @param q La cola objetivo.
+ * @return El nodo menos utilizado.
+ */
 LRUNode lru_queue_get_least_recent(LRUQueue q);
 
-/// @brief: Obtiene el nodo mas recientemente usado
+/**
+ * @brief Obtiene el nodo mas recientemente utilizado de la cola.
+ * 
+ * @param q La cola
+ * @return El nodo mas recientemente utilizado.
+ */
 LRUNode lru_queue_get_most_recent(LRUQueue q);
 
 /// @brief: Inserta un nuevo nodo \a node como el mas reciente de la cola \a q.
 /// @return: El puntero al nodo insertado, o NULL en caso de error.s
-LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q);
+LRUNode lru_queue_add_recent(HashNode node, LRUQueue q);
 
 /** 
  *  @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion o relocacion),
