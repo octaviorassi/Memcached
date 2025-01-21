@@ -1,8 +1,8 @@
 #include <stdlib.h>
-#include "cache.h"
-#include "../lru/lru.h"
-#include "../hashmap/hashmap.h"
 #include <pthread.h>
+#include "cache.h"
+#include "../hashmap/hashmap.h"
+#include "../lru/lru.h"
 
 // ? borrar
 typedef pthread_mutex_t Lock;
@@ -73,11 +73,11 @@ LookupResult cache_get(int key, Cache cache) {
 
   // ! Problema: puede ser que entre que encuentro el resultado y actualizo su prioridad, 
   // ! otro proceso aplique la politica de desalojo y borre este nodo. No se si deberiamos evitarlo o no.
-  int lru_status = lru_queue_set_most_recent(node, cache->queue);
+  LRUNode lru_status = lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
 
   int lock_status = hashmap_release_key_lock(key, cache->map);
 
-  if (lru_status != 0 || lock_status != 0)
+  if (lru_status != NULL || lock_status != 0)
     return create_error_lookup_result();
 
   return create_ok_lookup_result(val);
@@ -95,7 +95,7 @@ int cache_put(int key, int val, Cache cache) {
   // La clave ya tenia un valor asociado en la cache. 
   // Actualizamos su prioridad y devolvemos su mutex.
   if (node != NULL) {
-    lru_queue_set_most_recent(node, cache->queue);
+    lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     hashmap_release_key_lock(key, cache->map);
     return 0;
   }
@@ -120,16 +120,16 @@ int cache_put(int key, int val, Cache cache) {
 
 }
 
-void cache_delete(int key, Cache cache) { 
+int cache_delete(int key, Cache cache) { 
 
   if (cache == NULL)
-    return;
+    return -1;
   
   HashNode node = hashmap_lookup_node(key, cache->map);
 
   // La clave no pertenecia a la cache
   if (node == NULL)
-    return;
+    return -1;
 
   // La clave pertenecia, entonces tenemos el mutex de node.
   // Lo sacamos de la cola LRU.
@@ -140,6 +140,8 @@ void cache_delete(int key, Cache cache) {
   // ! solo la de hashmap, y deberiamos tener una destroy_node en hashmap.
   hashnode_destroy(node);
   
+  return 0;
+
 }
 
 void cache_stats(Cache cache) { return; }

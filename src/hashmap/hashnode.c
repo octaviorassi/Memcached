@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "hashnode.h"
-#include "lrunode.h"
 
 struct HashNode {
     int key, val;
@@ -85,8 +85,8 @@ int hashnode_clean(HashNode node) {
   HashNode prev = hashnode_get_prev(node);
   HashNode next = hashnode_get_next(node);
 
-  hash_node_set_next(prev, next);
-  hash_node_set_prev(next, prev);
+  hashnode_set_next(prev, next);
+  hashnode_set_prev(next, prev);
 
   return 0;
 
@@ -136,5 +136,18 @@ HashNode hashnode_get_next(HashNode node) {
 void hashnode_set_next(HashNode node, HashNode next) {
     if (node != NULL) {
         node->next = next;
+    }
+}
+
+LRUNode hashnode_get_prio(HashNode node) {
+    if (node == NULL) {
+        return NULL;
+    }
+    return node->prio;
+}
+
+void hashnode_set_prio(HashNode node, LRUNode prio) {
+    if (node != NULL) {
+        node->prio = prio;
     }
 }

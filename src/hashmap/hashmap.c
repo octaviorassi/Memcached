@@ -136,6 +136,7 @@ HashNode hashmap_lookup_node(int key, HashMap map) {
     return node;
 }
 
+void hashmap_destroy(HashMap map) { return; }
 
 // helpers
 
@@ -153,12 +154,8 @@ int hashmap_get_key_lock(int key, HashMap map) {
     
     int bucket_number = hashmap_get_bucket_number(key, map);
 
-    pthread_mutex_t* lock = hashmap_get_zone_mutex(bucket_number, map);
+    return hashmap_lock_zone_mutex(bucket_number, map);
     
-    if (pthread_mutex_lock(lock) != 0)
-        return -1;
-
-    return 0;
 }
 
 int hashmap_release_key_lock(int key, HashMap map) {
@@ -168,12 +165,7 @@ int hashmap_release_key_lock(int key, HashMap map) {
     
     int bucket_number = hashmap_get_bucket_number(key, map);
 
-    pthread_mutex_t* lock = hashmap_get_zone_mutex(bucket_number, map);
-    
-    if (pthread_mutex_unlock(lock) != 0)
-        return -1;
-
-    return 0;    
+    return hashmap_unlock_zone_mutex(bucket_number, map);
 
 }
 

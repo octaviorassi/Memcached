@@ -1,9 +1,12 @@
 #ifndef __LRU_NODE_H__
 #define __LRU_NODE_H__
 
-#include <../hashmap/hashnode.h>
+#include "../hashmap/hashnode.h"
 
 typedef struct LRUNode* LRUNode;
+
+typedef struct HashNode* HashNode;
+
 
 
 /**

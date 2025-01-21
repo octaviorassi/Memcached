@@ -1,39 +1,64 @@
-# Compiler settings
+# Compiler
 CC = gcc
-CFLAGS = -std=c99 -g
+
+# Compiler flags
+# CFLAGS = -Wall -Wextra -I./src
+CFLAGS = -I./src
 
 # Directories
 SRC_DIR = src
-BUILD_DIR = build
-OBJ_DIR = $(BUILD_DIR)/cache
 APP_DIR = $(SRC_DIR)/app
-OBJ_FILES = $(OBJ_DIR)/cache.o $(BUILD_DIR)/app/main.o  # Add main.o from src/app
+CACHE_DIR = $(SRC_DIR)/cache
+HASHMAP_DIR = $(SRC_DIR)/hashmap
+HELPERS_DIR = $(SRC_DIR)/helpers
+LRU_DIR = $(SRC_DIR)/lru
 
-# Include paths
-INCLUDES = -Isrc/lru -Isrc/hash -Isrc/nodes -Isrc/cache -Isrc
+# Source files
+SRCS = $(APP_DIR)/main.c \
+       $(CACHE_DIR)/cache.c \
+       $(HASHMAP_DIR)/hashmap.c \
+       $(HASHMAP_DIR)/hashnode.c \
+       $(HELPERS_DIR)/results.c \
+       $(LRU_DIR)/lru.c \
+       $(LRU_DIR)/lrunode.c
 
-# Target executable
-TARGET = memcached
+# Object files
+OBJS = $(SRCS:.c=.o)
+
+# Executable
+TARGET = my_project
 
 # Default target
 all: $(TARGET)
 
-# Rule to compile cache files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/cache/%.c
-	@mkdir -p $(OBJ_DIR)  # Create the directory if it doesn't exist
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+# Link object files to create the executable
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
 
-# Rule to compile main.c from src/app
-$(BUILD_DIR)/app/main.o: $(APP_DIR)/main.c
-	@mkdir -p $(BUILD_DIR)/app  # Create the directory if it doesn't exist
-	$(CC) $(CFLAGS) $(INCLUDES) -c $(APP_DIR)/main.c -o $(BUILD_DIR)/app/main.o
+# Compile source files to object files
+$(APP_DIR)/main.o: $(APP_DIR)/main.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Linking rule to create the executable
-$(TARGET): $(OBJ_FILES)
-	$(CC) $(OBJ_FILES) -o $(TARGET)
+$(CACHE_DIR)/cache.o: $(CACHE_DIR)/cache.c $(CACHE_DIR)/cache.h $(LRU_DIR)/lru.h $(HASHMAP_DIR)/hashmap.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean up
+$(HASHMAP_DIR)/hashmap.o: $(HASHMAP_DIR)/hashmap.c $(HASHMAP_DIR)/hashmap.h $(HASHMAP_DIR)/hashnode.h $(HELPERS_DIR)/results.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(HASHMAP_DIR)/hashnode.o: $(HASHMAP_DIR)/hashnode.c $(HASHMAP_DIR)/hashnode.h $(LRU_DIR)/lrunode.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(HELPERS_DIR)/results.o: $(HELPERS_DIR)/results.c $(HELPERS_DIR)/results.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(LRU_DIR)/lru.o: $(LRU_DIR)/lru.c $(LRU_DIR)/lru.h $(LRU_DIR)/lrunode.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(LRU_DIR)/lrunode.o: $(LRU_DIR)/lrunode.c $(LRU_DIR)/lrunode.h $(HASHMAP_DIR)/hashnode.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean up build files
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -f $(OBJS) $(TARGET)
 
 .PHONY: all clean

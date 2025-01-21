@@ -42,11 +42,11 @@ LRUQueue lru_queue_create() {
 // ? si chequeo null y luego pido lock, es posible que vea que no es null, otro proceso elimine la cola,
 // ? y cuando vaya a pedir el lock, el puntero ya sea null.
 // ? pero, si pido el lock y luego chequeo si es null, puede que este desreferenciando a un puntero null.
-inline int lru_queue_lock(LRUQueue q) {
+static inline int lru_queue_lock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
 }
 
-inline int lru_queue_unlock(LRUQueue q) {
+static inline int lru_queue_unlock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
 }
 
@@ -73,7 +73,7 @@ LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) {
 
   q->most_recent = node; 
 
-  lru_hash_node_set_lru_next(node, NULL);
+  lrunode_set_next(node, NULL);
 
   if (lru_queue_unlock(q) < 0)
     return NULL;
@@ -86,11 +86,11 @@ int lru_queue_node_clean(LRUNode node, LRUQueue q) {
   
   if (lru_queue_lock(q) < 0) return -1;
 
-  LRUNode prev = lru_hash_node_get_lru_prev(node);
-  LRUNode next = lru_hash_node_get_lru_next(node);
+  LRUNode prev = lrunode_get_prev(node);
+  LRUNode next = lrunode_get_next(node);
 
-  lru_hash_node_set_lru_next(prev, next);
-  lru_hash_node_set_lru_prev(next, prev);
+  lrunode_set_next(prev, next);
+  lrunode_set_prev(next, prev);
 
   if (lru_queue_unlock(q) < 0) return -1;
 

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "results.h"
 
-inline LookupResult create_lookup_result(int value, Status status) {
+static inline LookupResult create_lookup_result(int value, Status status) {
     return (LookupResult){value, status};
 }
 

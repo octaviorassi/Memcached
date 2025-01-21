@@ -2,6 +2,7 @@
 #define __CACHE_H__
 
 #include "../helpers/results.h"
+#include "../hashmap/hashmap.h"
 
 typedef struct Cache* Cache;
 

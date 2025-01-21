@@ -11,7 +11,7 @@ typedef struct HashMap* HashMap;
 
 typedef int (*HashFunction)(int);
 
-int placeholder_hash(int n) { return n; }
+// int placeholder_hash(int n) { return n; }
 
 /// @brief Crea un HashMap con funcion de hash \a hash y cantidad de buckets \a n_buckets.
 HashMap hashmap_create(HashFunction hash, int n_buckets);
@@ -123,6 +123,31 @@ HashNode hashmap_lookup_node(int key, HashMap map);
 // (ver si hacemos algo cuando el nodo no estaba en el hashmap, o si falla por otro motivo)
 int hashmap_delete_node(int key, HashMap map);
 
-// ? hashmap_update la definimos, o la hacemos directo con insert?
+/**
+ *  @brief Libera la memoria asignada al HashMap objetivo.
+ * 
+ *  @param map El HashMap objetivo.
+ */
+void hashmap_destroy(HashMap map);
+
+/**
+ *  @brief Obtiene el mutex asociado al numero de bucket en el HashMap.
+ * 
+ *  @param bucket_number El numero del bucket.
+ *  @param map El HashMap objetivo.
+ * 
+ *  @returns 0 en caso de exito, -1 si no.
+ */
+int hashmap_lock_zone_mutex(int bucket_number, HashMap map);
+
+/**
+ *  @brief Libera el mutex asociado al numero de bucket en el HashMap.
+ * 
+ *  @param bucket_number El numero del bucket.
+ *  @param map El HashMap objetivo.
+ * 
+ *  @returns 0 en caso de exito, -1 si no.
+ */
+int hashmap_unlock_zone_mutex(int bucket_number, HashMap map);
 
 #endif // __HASH_MAP_H__

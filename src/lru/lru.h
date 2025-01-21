@@ -1,7 +1,7 @@
 #ifndef __LRU_H__
 #define __LRU_H__
 
-#include "hashnode.h"
+#include "../hashmap/hashnode.h"
 
 typedef struct LRUQueue* LRUQueue;
 
@@ -31,7 +31,7 @@ LRUNode lru_queue_get_most_recent(LRUQueue q);
 
 /// @brief: Inserta un nuevo nodo \a node como el mas reciente de la cola \a q.
 /// @return: El puntero al nodo insertado, o NULL en caso de error.s
-LRUNode lru_queue_add_recent(HashNode node, LRUQueue q);
+LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q);
 
 /** 
  *  @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion o relocacion),
