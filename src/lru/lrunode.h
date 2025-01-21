@@ -15,6 +15,12 @@ LRUNode lrunode_create();
 
 
 /**
+ * @brief Destruye el nodo objetivo, liberando la memoria asociada. Se asume que el nodo ya esta 'limpio'.
+ * @param node El nodo a destruir.
+ */
+void lrunode_destroy(LRUNode node);
+
+/**
  * @brief Obtiene el nodo previo.
  * @param node Puntero al nodo LRU.
  * @return Puntero al nodo previo.

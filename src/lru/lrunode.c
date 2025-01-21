@@ -18,6 +18,11 @@ LRUNode lrunode_create() {
 
 }
 
+void lrunode_destroy(LRUNode node) {
+    if (node != NULL)
+        free(node);
+}
+
 LRUNode lrunode_get_prev(LRUNode node) {
     if (node == NULL) {
         return NULL;
