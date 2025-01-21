@@ -18,6 +18,8 @@ struct HashMap {
 
 };
 
+
+
 HashMap hashmap_create(HashFunction hash, int n_buckets) {
 
     HashMap map = malloc(sizeof(struct HashMap));
@@ -45,15 +47,102 @@ HashMap hashmap_create(HashFunction hash, int n_buckets) {
         return NULL;
 
     return map;
+
 }
 
-int hashmap_get_bucket_number(int key, HashMap map) {
+HashNode hashmap_insert(int key, int val, HashMap map) { 
+
+    HashNode node = hashnode_create(key, val);
+
+    if (node == NULL)
+        return NULL;
+
+
+    int bucket_number = hashmap_get_bucket_number(key, map);
+
+    HashNode bucket = map->buckets[bucket_number];
+    
+    /* Insercion:
+            I.   El prev del bucket pasa a ser node
+            II.  El next del node   pasa a ser bucket
+            III. El bucket pasa a ser node
+    */
+
+    hashnode_set_prev(bucket, node);
+    hashnode_set_next(node, bucket);
+    map->buckets[bucket_number] = node;
+
+    return node;
+
+}
+
+HashNode hashmap_update(int key, int val, HashMap map) { 
+
+    HashNode node = hashmap_lookup_node(key, map);
+
+    // La clave no pertenecia a ningun par
+    if (node == NULL)
+        return NULL;
+
+    // La clave estaba asociada a un par
+    hashnode_set_val(node, val);
+
+    // ! Aca esta el problema. Deberia devolver el mutex ahora,
+    // ! pero inmediatamente despues de llamar a hashmap_update
+    // ! es probable que la Cache quiera hacer un lru_update
+    // ! que requiere del mismo mutex. Entonces, conviene no
+    // ! devolverlo, y que hashmap_update se quede el mutex
+    // ! si logra actualizarlo.
+
+    return node;
+
+}
+
+LookupResult hashmap_lookup(int key, HashMap map) { 
 
     if (map == NULL)
+        return create_error_lookup_result();
+
+    int bucket_number = hashmap_get_bucket_number(key, map);
+
+    if (bucket_number < 0)
+       return create_error_lookup_result();
+
+    HashNode bucket = hashmap_get_bucket(bucket_number, map);
+    LookupResult lr = hashnode_lookup(key, bucket);
+
+    hashmap_unlock_zone_mutex(bucket_number, map);
+
+    return lr;
+
+}
+
+HashNode hashmap_lookup_node(int key, HashMap map) {
+
+    if (map == NULL)
+        return NULL;
+
+    int bucket_number = hashmap_get_bucket_number(key, map);
+
+    if (bucket_number < 0)
+       return NULL;
+
+    /*  Aca obtenemos el mutex ademas del bucket, y no lo liberamos,
+        pues se preserva tras el llamado a funcion. */
+    HashNode bucket = hashmap_get_bucket(bucket_number, map);
+
+    HashNode node = hashnode_lookup_node(key, bucket);
+
+    return node;
+}
+
+
+// helpers
+
+int hashmap_get_bucket_number(int key, HashMap map) {
+    if (map == NULL)
         return -1;
-
     return map->hash_function(key) % map->n_buckets;
-
 }
 
 // ? podria devolver el bucket_number en caso exitoso, para ahorrar volver a calcularlo.
@@ -108,71 +197,6 @@ int hashmap_lock_zone_mutex(int bucket_number, HashMap map) {
 
 int hashmap_unlock_zone_mutex(int bucket_number, HashMap map) {
     return 0;
-}
-
-HashNode hashmap_insert(int key, int val, HashMap map) { 
-
-    HashNode node = hashnode_create(key, val);
-
-    if (node == NULL)
-        return NULL;
-
-
-    int bucket_number = hashmap_get_bucket_number(key, map);
-
-    HashNode bucket = map->buckets[bucket_number];
-    
-    /* Insercion:
-            I.   El prev del bucket pasa a ser node
-            II.  El next del node   pasa a ser bucket
-            III. El bucket pasa a ser node
-    */
-
-    hashnode_set_prev(bucket, node);
-    hashnode_set_next(node, bucket);
-    map->buckets[bucket_number] = node;
-
-    return node;
-
-}
-
-LookupResult hashmap_lookup(int key, HashMap map) { 
-
-    if (map == NULL)
-        return create_error_lookup_result();
-
-    int bucket_number = hashmap_get_bucket_number(key, map);
-
-    if (bucket_number < 0)
-       return create_error_lookup_result();
-
-    HashNode bucket = hashmap_get_bucket(bucket_number, map);
-    LookupResult lr = hashnode_lookup(key, bucket);
-
-    hashmap_unlock_zone_mutex(bucket_number, map);
-
-    return lr;
-
-}
-
-
-HashNode hashmap_lookup_node(int key, HashMap map) {
-
-    if (map == NULL)
-        return NULL;
-
-    int bucket_number = hashmap_get_bucket_number(key, map);
-
-    if (bucket_number < 0)
-       return NULL;
-
-    /*  Aca obtenemos el mutex ademas del bucket, y no lo liberamos,
-        pues se preserva tras el llamado a funcion. */
-    HashNode bucket = hashmap_get_bucket(bucket_number, map);
-
-    HashNode node = hashnode_lookup_node(key, bucket);
-
-    return node;
 }
 
 // todo

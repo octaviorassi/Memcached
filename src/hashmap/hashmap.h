@@ -70,6 +70,24 @@ HashNode hashmap_get_bucket(int bucket_number, HashMap map);
  */
 HashNode hashmap_insert(int key, int val, HashMap map);
 
+
+/**
+ * @brief Si la clave \a key pertenece a algun par en el HashMap,
+ * actualiza su valor asociado \a val. Caso contrario, no hace nada.
+ * 
+ * IMPORTANTE: En caso de lograr actualizaro, ademas se obtiene el 
+ * mutex asociado al nodo objetivo.Es responsabilidad del llamante
+ * liberarlo posteriormente.
+ * Esta funcion es thread-safe.
+ * 
+ * @param key Clave del par.
+ * @param val Nuevo valor.
+ * @param map HashMap objetivo.
+ * @return Retorna el puntero al nodo actualizado en caso de exito, o NULL si no se
+ * actualizo la clave objetivo.
+ */
+HashNode hashmap_update(int key, int val, HashMap map);
+
 /**
  * @brief Busca el valor asociado a la clave en el HashMap.
  * 
