@@ -37,6 +37,8 @@ void hashnode_destroy(HashNode node) {
     if (node == NULL)
         return;
 
+    lrunode_destroy(node->prio);
+    
     free(node);
 
 }
