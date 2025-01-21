@@ -89,19 +89,22 @@ int cache_put(int key, int val, Cache cache) {
   if (cache == NULL)
     return -1;
 
-  if (hashmap_get_key_lock(key, cache->map) != 0)
-    return -1;
-
+  // Al salir, si node != NULL entonces se posee su mutex.
   HashNode node = hashmap_update(key, val, cache->map);
 
-  // La clave ya tenia un valor asociado en la cache
+  // La clave ya tenia un valor asociado en la cache. 
+  // Actualizamos su prioridad y devolvemos su mutex.
   if (node != NULL) {
     lru_queue_set_most_recent(node, cache->queue);
     hashmap_release_key_lock(key, cache->map);
     return 0;
   }
 
-  // La clave no estaba en la cache, tenemos que insertar
+  // Si el update no se realizo, entonces no tenemos el lock.
+  // Lo adquirimos y luego insertamos.
+  if (hashmap_get_key_lock(key, cache->map) != 0)
+    return -1;
+
   node = hashmap_insert(key, val, cache->map);
 
   if (node == NULL) {
@@ -119,13 +122,23 @@ int cache_put(int key, int val, Cache cache) {
 
 void cache_delete(int key, Cache cache) { 
 
-  /**
-   * 0. Buscamos el puntero del nodo en el hashmap. 
-   * 1. Lo limpio en la LRUQueue (no libera la memoria). 
-   * 2. Elimino en HashMap.
-   */
+  if (cache == NULL)
+    return;
+  
+  HashNode node = hashmap_lookup_node(key, cache->map);
 
-  return;
+  // La clave no pertenecia a la cache
+  if (node == NULL)
+    return;
+
+  // La clave pertenecia, entonces tenemos el mutex de node.
+  // Lo sacamos de la cola LRU.
+  lru_queue_node_clean(hashnode_get_prio(node), cache->queue);
+
+  // Y liberamos la memoria que se le habia asignado.
+  // ! Observacion: quizas Cache no deberia conocer la interfaz de hashnode, si no que
+  // ! solo la de hashmap, y deberiamos tener una destroy_node en hashmap.
+  hashnode_destroy(node);
   
 }
 

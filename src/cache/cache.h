@@ -20,7 +20,7 @@ Cache cache_create(HashFunction hash, int n_buckets);
  *  @brief Busca el valor asociado a una clave en la cache.
  * 
  *  @param key La clave buscada.
- *  @param cache La cache objetivo
+ *  @param cache La cache objetivo.
  * 
  *  @return Un LookUp result con un status indicando si la operacion fue exitosa.
  */
@@ -33,7 +33,7 @@ LookupResult cache_get(int key, Cache cache);
  * 
  *  @param key La clave.
  *  @param val El valor asociado.
- *  @param cache La cache objetivo
+ *  @param cache La cache objetivo.
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */
 int cache_put(int key, int val, Cache cache);
