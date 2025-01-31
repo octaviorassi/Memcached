@@ -25,15 +25,15 @@ LRUQueue lru_queue_create();
 LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q);
 
 /**
- *  @brief Elimina el nodo menos recientemente utilizado de la cola, liberando la memoria de su HashNode asociado. 
+ *  @brief Elimina el nodo menos recientemente utilizado de la cola, liberando su memoria asignada y retornando un puntero a su HashNode asociado.
  * 
  *  `IMPORTANTE` Se debe poseer el lock de la zona a la que este nodo pertenece o, en su defecto, el de todas las zonas.
  * 
  * @param q La cola LRU objetivo.
- * @return El tamaño del bloque de memoria liberado.
+ * @return El puntero al HashNode asociado al nodo expulsado.
  * 
  */
-size_t lru_queue_evict(LRUQueue q);
+HashNode lru_queue_evict(LRUQueue q);
 
 /**
  *  @brief Destruye la cola LRU objetivo, liberando los recursos asignados sin liberar la memoria asociada a los nodos de la tabla hash. 

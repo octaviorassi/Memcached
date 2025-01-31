@@ -59,32 +59,22 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
 
 }
 
-size_t lru_queue_evict(LRUQueue q) {
+HashNode lru_queue_evict(LRUQueue q) {
 
   // Lockeamos la cola y obtenemos el ultimo nodo.
-  if (lru_queue_lock(q) < 0)
+  if (q == NULL || lru_queue_lock(q) < 0)
     return 0;
 
   LRUNode lrunode = q->least_recent;
 
-  HashNode node = lrunode_get_hash_node(node);
+  HashNode hashnode = lrunode_get_hash_node(lrunode);
 
-  // todo: Esto no es muy preciso que digamos, podria estimarse (bastante) mejor.
-  size_t node_size = hashnode_get_key_size(node) + 
-                     hashnode_get_val_size(node) + 
-                     sizeof(node)                +
-                     sizeof(lrunode);
-
-  hashnode_clean(node);
-  hashnode_destroy(node);
-
-  // todo: tambien falta estimar cuanta memoria libero aca mejor
   lru_queue_node_clean(lrunode, q);
   lrunode_destroy(lrunode);
 
   lru_queue_unlock(q);
 
-  return node_size;
+  return hashnode;
 
 }
 
