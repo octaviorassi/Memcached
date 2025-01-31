@@ -114,7 +114,21 @@ int lru_queue_destroy(LRUQueue q) {
 
 }
 
+int lru_queue_delete(LRUNode node, LRUQueue q) {
 
+  if (node == NULL)
+    return -1;
+
+  lru_queue_lock(q);
+
+  lru_queue_node_clean(node, q);
+  lrunode_destroy(node);
+
+  lru_queue_unlock(q);
+
+  return 0;
+  
+}
 
 
 

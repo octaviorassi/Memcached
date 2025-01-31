@@ -43,4 +43,15 @@ size_t lru_queue_evict(LRUQueue q);
  */
 int lru_queue_destroy(LRUQueue q);
 
+/**
+ *  @brief Elimina el nodo objetivo de la cola LRU, liberando su memoria. No modifica la memoria asignada a su HashNode asociado.
+ * 
+ *  @param node El nodo a eliminar.
+ *  @param q La cola LRU a la que pertenece.
+ *
+ *  @return 0 en caso de exito, -1 si se produjo un error. 
+ */
+int lru_queue_delete(LRUNode node, LRUQueue q);
+
+
 #endif // __LRU_H__
