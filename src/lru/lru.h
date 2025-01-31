@@ -14,38 +14,33 @@ typedef struct LRUNode* LRUNode;
 LRUQueue lru_queue_create();
 
 /**
- * @brief Obtiene un puntero al nodo menos utilizado.
+ *  @brief Establece al nodo objetivo como el mas reciente de la cola, asumiendo que puede ya haber formado parte de la cola. 
  * 
- * @param q La cola objetivo.
- * @return El nodo menos utilizado.
- */
-LRUNode lru_queue_get_least_recent(LRUQueue q);
-
-/**
- * @brief Obtiene el nodo mas recientemente utilizado de la cola.
+ *  @param node El nodo objetivo.
+ *  @param q La cola LRU. 
  * 
- * @param q La cola
- * @return El nodo mas recientemente utilizado.
+ *  @return El puntero al nodo establecido.
+ * 
  */
-LRUNode lru_queue_get_most_recent(LRUQueue q);
-
-/// @brief: Inserta un nuevo nodo \a node como el mas reciente de la cola \a q.
-/// @return: El puntero al nodo insertado, o NULL en caso de error.s
-LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q);
-
-/** 
- *  @brief: Desconecta un nodo de la LRUQueue (normalmente llamada previo a su eliminacion o relocacion),
- *  reconectando su nodo predecesor y sucesor de ser necesario.
- *  @return 0 si es exitoso, -1 si se produjo un error relacionado al mutex de \a q.
- **/
-int lru_queue_node_clean(LRUNode node, LRUQueue q);
-
-/// @brief: Desplaza el nodo objetivo al principio de la cola.
 LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q);
 
-/* 
-// @brief: Destruye la LRU liberando su memoria.
-void lru_destroy(LRUQueue q);
-*/
+/**
+ *  @brief Elimina el nodo menos recientemente utilizado de la cola, liberando la memoria de su HashNode asociado. 
+ * 
+ *  `IMPORTANTE` Se debe poseer el lock de la zona a la que este nodo pertenece o, en su defecto, el de todas las zonas.
+ * 
+ * @param q La cola LRU objetivo.
+ * @return El tamaño del bloque de memoria liberado.
+ * 
+ */
+size_t lru_queue_evict(LRUQueue q);
+
+/**
+ *  @brief Destruye la cola LRU objetivo, liberando los recursos asignados sin liberar la memoria asociada a los nodos de la tabla hash. 
+ * 
+ * @param q La cola LRU a destruir.
+ * @return 0 si es exitoso, -1 en caso de error.
+ */
+int lru_queue_destroy(LRUQueue q);
 
 #endif // __LRU_H__

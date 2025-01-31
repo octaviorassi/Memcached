@@ -39,9 +39,92 @@ LRUQueue lru_queue_create() {
   
 }
 
-// ? si chequeo null y luego pido lock, es posible que vea que no es null, otro proceso elimine la cola,
-// ? y cuando vaya a pedir el lock, el puntero ya sea null.
-// ? pero, si pido el lock y luego chequeo si es null, puede que este desreferenciando a un puntero null.
+LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
+
+  if (node == NULL)
+    return NULL;
+
+  lru_queue_lock(q);
+
+  // Si ya formaba parte de la cola, lo desconectamos.
+  if (!lru_node_is_clean(node))
+    lru_queue_node_clean(node, q);
+
+  // Y luego lo agregamos al inicio
+  LRUNode node = lru_queue_add_recent(node, q);
+
+  lru_queue_unlock(q);
+  
+  return node;
+
+}
+
+size_t lru_queue_evict(LRUQueue q) {
+
+  // Lockeamos la cola y obtenemos el ultimo nodo.
+  if (lru_queue_lock(q) < 0)
+    return 0;
+
+  LRUNode lrunode = q->least_recent;
+
+  HashNode node = lrunode_get_hash_node(node);
+
+  // todo: Esto no es muy preciso que digamos, podria estimarse (bastante) mejor.
+  size_t node_size = hashnode_get_key_size(node) + 
+                     hashnode_get_val_size(node) + 
+                     sizeof(node)                +
+                     sizeof(lrunode);
+
+  hashnode_clean(node);
+  hashnode_destroy(node);
+
+  // todo: tambien falta estimar cuanta memoria libero aca mejor
+  lru_queue_node_clean(lrunode, q);
+  lrunode_destroy(lrunode);
+
+  lru_queue_unlock(q);
+
+  return node_size;
+
+}
+
+int lru_queue_destroy(LRUQueue q) {
+
+  // Solo destruye la memoria que es propia de la LRU. No se mete con la Hash.
+  if (q == NULL)
+    return -1;
+
+  lru_queue_lock(q);
+
+  LRUNode tmp = q->least_recent;
+  LRUNode next;
+
+  while (tmp) {
+    next = lrunode_get_next(tmp);
+    lrunode_destroy(tmp);
+    tmp = next;
+  }
+
+  lru_queue_unlock(q);
+
+  pthread_mutex_destroy(q->lock);
+  free(q);
+
+  return 0;
+
+}
+
+
+
+
+
+
+
+/** -----------------------------------
+ *  Funciones auxiliares no exportadas.
+ *  -----------------------------------
+ */
+
 static inline int lru_queue_lock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
 }
@@ -50,74 +133,55 @@ static inline int lru_queue_unlock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
 }
 
-
-// ! Quizas esta deberia ser la unica funcion en vez de tener tanto add_recent como set_most_recent
-// ! Son practicamente iguales, nada mas que add_recent asume que es un nuevo nodo mientras que set asume
-// ! que ya era parte de la cola, por lo que antes de insertarlo lo limpia.
-LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
+static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
 
   if (node == NULL) 
     return NULL;
 
   /** I.    El previo lru de node pasa a ser el mas reciente de q.
-   *  II.   Si el mas reciente no nulo, su siguiente pasa a ser node.
+   *  II.   Si el mas reciente es no nulo, su siguiente pasa a ser node.
    *  III.  El mas reciente de la cola pasa a ser node.
    *  IV.   El siguiente de node es siempre NULL.
    */
 
-  if (lru_queue_lock(q) < 0)
-    return NULL;
-
   lrunode_set_prev(node, q->most_recent);
   lrunode_set_next(q->most_recent, node);
 
-  q->most_recent = node; 
+  q->most_recent = node;
+
+  // Si es el primer nodo a insertar, tambien es el menos reciente.
+  if (q->least_recent == NULL)
+    q->least_recent = node; 
 
   lrunode_set_next(node, NULL);
-
-  if (lru_queue_unlock(q) < 0)
-    return NULL;
 
   return node;
 
 }
 
-int lru_queue_node_clean(LRUNode node, LRUQueue q) { 
+static void lru_queue_node_clean(LRUNode node, LRUQueue q) { 
   
-  if (lru_queue_lock(q) < 0) return -1;
-
   LRUNode prev = lrunode_get_prev(node);
   LRUNode next = lrunode_get_next(node);
 
   lrunode_set_next(prev, next);
   lrunode_set_prev(next, prev);
 
-  if (lru_queue_unlock(q) < 0) return -1;
+  LRUNode lr = q->least_recent;
+  LRUNode mr = q->most_recent;
+
+  if (lr == node)
+    q->least_recent = lrunode_get_next(lr);
+
+  if (mr == node)
+    q->most_recent  = lrunode_get_prev(mr);
 
   return 0;
 
 }
 
-// ! Ver cuales funciones deberian tomar lock y cuales no.
-// ! Por ejemplo, aca quizas seria mejor que solo se tome el lock una vez y se haga la limpieza
-// ! y la insercion juntas, pero como las funciones clean y add_recent ambas lo toman, el lock es
-// ! tomado, devuelto, y de nuevo tomado.
-LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
-
-  // Primero lo desconectamos (clean)
-  if (lru_queue_node_clean(node, q) < 0)
-    return NULL;
-
-  // Y luego lo agregamos al inicio
-  return lru_queue_add_recent(node, q);
-  
-}
-
-inline LRUNode lru_queue_get_least_recent(LRUQueue q) { 
-  return (q == NULL) ? NULL : q->least_recent;
-}
-
-inline LRUNode lru_queue_get_most_recent(LRUQueue q) { 
-  return (q == NULL) ? NULL : q->most_recent;
+static inline int lru_node_is_clean(LRUNode node) {
+  return  lrunode_get_prev(node) == NULL &&
+          lrunode_get_next(node) == NULL;
 }
 

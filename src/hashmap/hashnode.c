@@ -5,6 +5,8 @@
 
 struct HashNode {
     int key, val;
+    size_t key_size, val_size;
+
     struct HashNode* prev;
     struct HashNode* next;
     struct LRUNode* prio;
@@ -37,7 +39,7 @@ void hashnode_destroy(HashNode node) {
     if (node == NULL)
         return;
 
-    lrunode_destroy(node->prio);
+    // lrunode_destroy(node->prio);
     
     free(node);
 
@@ -110,6 +112,26 @@ int hashnode_get_val(HashNode node) {
 void hashnode_set_val(HashNode node, int val) {
     if (node != NULL) {
         node->val = val;
+    }
+}
+
+size_t hashnode_get_key_size(HashNode node) {
+    return node->key_size;
+}
+
+void hashnode_set_key_size(HashNode node, size_t key_size) {
+    if (node != NULL) {
+        node->key_size = key_size;
+    }
+}
+
+size_t hashnode_get_val_size(HashNode node) {
+    return node->val_size;
+}
+
+void hashnode_set_val_size(HashNode node, size_t val_size) {
+    if (node != NULL) {
+        node->val_size = val_size;
     }
 }
 

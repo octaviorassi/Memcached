@@ -95,6 +95,43 @@ int hashnode_get_val(HashNode node);
  */
 void hashnode_set_val(HashNode node, int val);
 
+
+/**
+ * @brief Obtiene el tamaño de la clave del nodo.
+ * 
+ * @param node Puntero al nodo.
+ * @return El tamaño de la clave del nodo.
+ */
+size_t hashnode_get_key_size(HashNode node);
+
+
+/**
+ * @brief Establece el tamaño de la clave del nodo.
+ * 
+ * @param node Puntero al nodo.
+ * @param key_size El tamaño de la clave del nodo.
+ */
+void hashnode_set_key_size(HashNode node, size_t key_size);
+
+
+/**
+ * @brief Obtiene el tamaño del valor del nodo.
+ * 
+ * @param node Puntero al nodo.
+ * @return El tamaño del valor del nodo.
+ */
+size_t hashnode_get_val_size(HashNode node);
+
+
+/**
+ * @brief Establece el tamaño del valor del nodo.
+ * 
+ * @param node Puntero al nodo.
+ * @param val_size El tamaño del valor del nodo.
+ */
+void hashnode_set_val_size(HashNode node, size_t val_size);
+
+
 /**
  * @brief Obtiene el nodo previo.
  * @param node Puntero al nodo.
