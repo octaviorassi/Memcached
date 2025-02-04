@@ -26,7 +26,7 @@ Cache cache_create(HashFunction hash, int n_buckets);
  * 
  *  @return Un LookUp result con un status indicando si la operacion fue exitosa.
  */
-LookupResult cache_get(int key, Cache cache);
+LookupResult cache_get(void* key, Cache cache);
 
 /**
  *  @brief Inserta un par clave-valor en la cache. Si la clave ya estaba 
@@ -38,7 +38,7 @@ LookupResult cache_get(int key, Cache cache);
  *  @param cache La cache objetivo.
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */
-int cache_put(int key, int val, Cache cache);
+int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cache);
 
 
 /**
@@ -50,7 +50,7 @@ int cache_put(int key, int val, Cache cache);
  *  @return 0 si se elimina un par, 1 si no se encuentra el par, -1 si se
  *  produjo un error.
  */
-int cache_delete(int key, Cache cache);
+int cache_delete(void* key, Cache cache);
 
 // todo
 void cache_stats(Cache cache);

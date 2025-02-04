@@ -11,13 +11,13 @@ struct LRUQueue {
   LRUNode most_recent;
   LRUNode least_recent;
 
-  pthread_mutex_t* lock; // ? mejor el mutex o el puntero al mutex? porq las funciones usan el puntero.
+  pthread_mutex_t* lock; 
 
 };
 
 LRUQueue lru_queue_create(Cache cache) { 
   
-  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), cache);
+  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), NULL, cache);
   if (lock == NULL)
     return NULL;
 
@@ -26,7 +26,7 @@ LRUQueue lru_queue_create(Cache cache) {
     return NULL;
   }
 
-  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), cache);
+  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), NULL, cache);
   if (queue == NULL) {
     free(lock);
     return NULL;

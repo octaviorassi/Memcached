@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "hashnode.h"
 #include "../lru/lrunode.h"
 
@@ -14,9 +15,12 @@ struct HashNode {
     struct LRUNode* prio;
 };
 
-HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, Cache cache) {
+int hashnode_keys_equal(const void* key_a, const void* key_b);
 
-    HashNode node = dynalloc(sizeof(struct HashNode), cache);
+
+HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, pthread_mutex_t* lock, Cache cache) {
+
+    HashNode node = dynalloc(sizeof(struct HashNode), lock, cache);
     if (node == NULL)
         return NULL;
 
@@ -29,7 +33,7 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
     memset(node, 0, sizeof(struct HashNode));
 
     // Asignamos memoria y setteamos la clave
-    node->key = dynalloc(key_size, cache);
+    node->key = dynalloc(key_size, lock, cache);
     if (node->key == NULL) { // siquiera puede pasar esto?
         lrunode_destroy(prio);
         free(node);
@@ -39,7 +43,7 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
     memcpy(node->key, key, key_size);
 
     // Asignamos memoria y setteamos el valor
-    node->val = dynalloc(val_size, cache);
+    node->val = dynalloc(val_size, lock, cache);
     if (node->val == NULL) {
         lrunode_destroy(prio);
         free(node->key);
@@ -74,32 +78,33 @@ void hashnode_destroy(HashNode node) {
 
 }
 
-LookupResult hashnode_lookup(int key, HashNode node) { 
-
+LookupResult hashnode_lookup(void* key, HashNode node) { 
+    // todo: podriamos tambien pasar el size_t por argumento y comenzar la comparacion preguntando si el size_t es el mismo
     if (node == NULL)
         return create_miss_lookup_result();
 
-    int found = hashnode_get_key(node) == key;
+    int found = hashnode_keys_equal(hashnode_get_key(node), key);
 
     while (node && !found) {
         node  = hashnode_get_next(node);
-        found = hashnode_get_key(node) == key;
+        found = hashnode_keys_equal(hashnode_get_key(node), key);
     }
 
     return found ? create_ok_lookup_result(hashnode_get_val(node)) :
                    create_miss_lookup_result();
 }
 
-HashNode hashnode_lookup_node(int key, HashNode node) {
+HashNode hashnode_lookup_node(void* key, HashNode node) {
 
     if (node == NULL)
         return NULL;
 
-    int found = hashnode_get_key(node) == key;
+    
+    int found = hashnode_keys_equal(hashnode_get_key(node), key);
 
     while (node && !found) {
         node  = hashnode_get_next(node);
-        found = hashnode_get_key(node) == key;
+        found = hashnode_keys_equal(hashnode_get_key(node), key);
     }
 
     // Si no lo encontre, node es NULL. Si lo encontre, node es el buscado.
@@ -123,17 +128,21 @@ int hashnode_clean(HashNode node) {
 
 }
 
+// todo: ver como las vamos a comparar.
+int hashnode_keys_equal(const void* key_a, const void* key_b) { return 0; }
+
 
 void* hashnode_get_key(HashNode node) {
-    return node->key;
+    return node ? node->key : NULL;
 }
 
-int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache) {
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size, pthread_mutex_t* lock, Cache cache) {
 
     if (node == NULL)
-        return;
+        return -1;
 
-    node->key = dynrealloc(node->key, new_key_size, cache);
+    if (new_key_size != node->key_size)
+        node->key = dynrealloc(node->key, new_key_size, lock, cache);
 
     if (node->key != NULL) {
         memcpy(node->key, key, new_key_size);
@@ -145,15 +154,16 @@ int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache)
 }
 
 void* hashnode_get_val(HashNode node) {
-    return node->val;
+    return node ? node->val : NULL;
 }
 
-int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache) {
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size, pthread_mutex_t* lock, Cache cache) {
 
     if (node == NULL)
-        return;
+        return -1;
 
-    node->val = dynrealloc(node->val, new_val_size, cache);
+    if (new_val_size != node->val_size)
+        node->val = dynrealloc(node->val, new_val_size, lock, cache);
 
     if (node->val != NULL) {
         memcpy(node->val, val, new_val_size);

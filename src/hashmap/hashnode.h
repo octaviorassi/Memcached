@@ -2,6 +2,7 @@
 #define __HASH_NODE_H__
 
 #include <stdio.h>
+#include <pthread.h>
 #include "../src/cache/cache.h"
 #include "../dynalloc/dynalloc.h"
 #include "../helpers/results.h"
@@ -24,11 +25,12 @@ typedef struct HashNode* HashNode;
  * @param key_size El tamaño de la clave.
  * @param val El puntero al valor del nodo.
  * @param val_size El tamaño del valor.
+ * @param lock El puntero al mutex asociado al bucket donde se intentara insertar el nodo.
  * @param cache Puntero a la cache donde se insertara el nodo.
  * 
  * @return Un puntero al nodo creado, que es NULL si falla al asignarse memoria.
  */
-HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, Cache cache);
+HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, pthread_mutex_t* lock, Cache cache);
 
 
 /**
@@ -47,7 +49,7 @@ void hashnode_destroy(HashNode node);
  * @return Un \a LookupResult con el valor asociado y un status reflejando si la busqueda fue exitosa,
  * si no se encontro, o si se produjo algun error.
  */
-LookupResult hashnode_lookup(int key, HashNode node);
+LookupResult hashnode_lookup(void* key, HashNode node);
 
 /**
  * @brief Busca el puntero al nodo asociado a la clave en el bucket iniciado en \a node.
@@ -56,7 +58,7 @@ LookupResult hashnode_lookup(int key, HashNode node);
  * @param node Bucket inicial.
  * @return Un puntero al nodo buscado, que es NULL en caso de no encontrarse.
  */
-HashNode hashnode_lookup_node(int key, HashNode node);
+HashNode hashnode_lookup_node(void* key, HashNode node);
 
 /**
  * @brief Desconecta al nodo objetivo de sus vecinos, reconectando a sus nodos adyacentes.
@@ -89,11 +91,12 @@ void* hashnode_get_key(HashNode node);
  * @param node Puntero al nodo.
  * @param key El puntero a la nueva clave para el nodo.
  * @param new_key_size El tamaño de la nueva clave del nodo.
+ * @param lock El puntero al mutex asociado al bucket al que pertenece el nodo.
  * @param cache La cache a la que pertenece el nodo.
  * 
  * @return 0 si la operacion es exitosa, -1 si no.
  */
-int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache);
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size, pthread_mutex_t* lock, Cache cache);
 
 
 /**
@@ -111,11 +114,12 @@ void* hashnode_get_val(HashNode node);
  * @param node Puntero al nodo.
  * @param val El puntero al nuevo valor para el nodo.
  * @param new_val_size El tamaño del nuevo valor del nodo.
+ * @param lock El puntero al mutex asociado al bucket al que pertenece el nodo.
  * @param cache La cache a la que pertenece el nodo.
  * 
  * @return 0 si la operacion es exitosa, -1 si no.
  */
-int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache);
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size, pthread_mutex_t* lock, Cache cache);
 
 /**
  * @brief Obtiene el tamaño de la clave del nodo.

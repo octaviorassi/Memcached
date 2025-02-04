@@ -10,14 +10,16 @@ typedef enum {
 } Status;
 
 typedef struct LookupResult {
-    int     value;
+    void*   ptr;
+    // size_t size: ? es necesario?
+
     Status  status;
 } LookupResult;
 
 // !? Deberia exportar el enum para que el usuario pueda chequearlo o hago un check_status que tome un lookup result
 
 /// @brief Devuelve un LookupResult con el valor objetivo y status OK.
-LookupResult create_ok_lookup_result(int value);
+LookupResult create_ok_lookup_result(void* ptr);
 
 /// @brief Devuelve un LookupResult con valor 0 y status ERROR.
 LookupResult create_error_lookup_result();
@@ -35,6 +37,6 @@ int lookup_result_is_ok(LookupResult lr);
 int lookup_result_is_miss(LookupResult lr);
 
 /// @brief Devuelve el valor almacenado en el LookupResult.
-int lookup_result_get_value(LookupResult lr);
+void* lookup_result_get_value(LookupResult lr);
 
 #endif // __RESULTS_H__
