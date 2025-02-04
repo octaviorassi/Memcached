@@ -61,6 +61,13 @@ void hashnode_destroy(HashNode node) {
     if (node == NULL)
         return;
 
+    // Liberamos la clave y el valor
+    if (node->key)
+        free(node->key);
+    
+    if (node->val)
+        free(node->val);
+
     // lrunode_destroy(node->prio);
     
     free(node);
@@ -117,24 +124,44 @@ int hashnode_clean(HashNode node) {
 }
 
 
-int hashnode_get_key(HashNode node) {
+void* hashnode_get_key(HashNode node) {
     return node->key;
 }
 
-void hashnode_set_key(HashNode node, int key) {
-    if (node != NULL) {
-        node->key = key;
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache) {
+
+    if (node == NULL)
+        return;
+
+    node->key = dynrealloc(node->key, new_key_size, cache);
+
+    if (node->key != NULL) {
+        memcpy(node->key, key, new_key_size);
+        return 0;
     }
+
+    return -1;
+
 }
 
-int hashnode_get_val(HashNode node) {
+void* hashnode_get_val(HashNode node) {
     return node->val;
 }
 
-void hashnode_set_val(HashNode node, int val) {
-    if (node != NULL) {
-        node->val = val;
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache) {
+
+    if (node == NULL)
+        return;
+
+    node->val = dynrealloc(node->val, new_val_size, cache);
+
+    if (node->val != NULL) {
+        memcpy(node->val, val, new_val_size);
+        return 0;
     }
+
+    return -1;
+
 }
 
 size_t hashnode_get_key_size(HashNode node) {

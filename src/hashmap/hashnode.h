@@ -20,12 +20,16 @@ typedef struct HashNode* HashNode;
 /**
  * @brief Crea un nuevo nodo.
  * 
- * @param key Clave del nodo.
- * @param val Valor asociado a la clave del nodo.
+ * @param key El puntero a la clave del nodo.
+ * @param key_size El tamaño de la clave.
+ * @param val El puntero al valor del nodo.
+ * @param val_size El tamaño del valor.
  * @param cache Puntero a la cache donde se insertara el nodo.
+ * 
  * @return Un puntero al nodo creado, que es NULL si falla al asignarse memoria.
  */
-HashNode hashnode_create(int key, int val, Cache cache);
+HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, Cache cache);
+
 
 /**
  * @brief Destruye el nodo objetivo, liberando la memoria asociada. Se asume que el nodo ya esta 'limpio'.
@@ -75,34 +79,43 @@ int hashnode_clean(HashNode node);
  * @brief Obtiene la clave del nodo.
  * 
  * @param node Puntero al nodo.
- * @return La clave del nodo.
+ * @return El puntero a la clave del nodo.
  */
-int hashnode_get_key(HashNode node);
+void* hashnode_get_key(HashNode node);
 
 /**
  * @brief Establece la clave del nodo.
  * 
  * @param node Puntero al nodo.
- * @param key La nueva clave para el nodo.
+ * @param key El puntero a la nueva clave para el nodo.
+ * @param new_key_size El tamaño de la nueva clave del nodo.
+ * @param cache La cache a la que pertenece el nodo.
+ * 
+ * @return 0 si la operacion es exitosa, -1 si no.
  */
-void hashnode_set_key(HashNode node, int key);
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache);
+
 
 /**
  * @brief Obtiene el valor del nodo.
  * 
  * @param node Puntero al nodo.
- * @return El valor del nodo.
+ * @return El puntero al valor del nodo.
  */
-int hashnode_get_val(HashNode node);
+void* hashnode_get_val(HashNode node);
+
 
 /**
- * @brief Establece el valor del nodo.
+ * @brief Establece la clave del nodo.
  * 
  * @param node Puntero al nodo.
- * @param val El nuevo valor para el nodo.
+ * @param val El puntero al nuevo valor para el nodo.
+ * @param new_val_size El tamaño del nuevo valor del nodo.
+ * @param cache La cache a la que pertenece el nodo.
+ * 
+ * @return 0 si la operacion es exitosa, -1 si no.
  */
-void hashnode_set_val(HashNode node, int val);
-
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache);
 
 /**
  * @brief Obtiene el tamaño de la clave del nodo.
