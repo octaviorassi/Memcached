@@ -1,14 +1,16 @@
 #include <string.h>
 #include "lrunode.h"
+#include "../dynalloc/dynalloc.h"
+
 struct LRUNode {
     struct LRUNode* prev;
     struct LRUNode* next;
     HashNode hash_node;
 };
 
-LRUNode lrunode_create() {
+LRUNode lrunode_create(Cache cache) {
 
-    LRUNode node = malloc(sizeof(struct LRUNode));
+    LRUNode node = dynalloc(sizeof(struct LRUNode), cache);
     if (node == NULL)
         return NULL;
 

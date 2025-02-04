@@ -2,9 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "hashnode.h"
+#include "../lru/lrunode.h"
 
 struct HashNode {
-    int key, val;
+    void* key;
+    void* val;
     size_t key_size, val_size;
 
     struct HashNode* prev;
@@ -12,13 +14,13 @@ struct HashNode {
     struct LRUNode* prio;
 };
 
-HashNode hashnode_create(int key, int val) {
+HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, Cache cache) {
 
-    HashNode node = malloc(sizeof(struct HashNode));
+    HashNode node = dynalloc(sizeof(struct HashNode), cache);
     if (node == NULL)
         return NULL;
 
-    LRUNode prio = lrunode_create();
+    LRUNode prio = lrunode_create(cache);
     if (prio == NULL) {
         free(node);
         return NULL;
@@ -26,8 +28,28 @@ HashNode hashnode_create(int key, int val) {
 
     memset(node, 0, sizeof(struct HashNode));
 
-    node->key   = key;
-    node->val   = val;
+    // Asignamos memoria y setteamos la clave
+    node->key = dynalloc(key_size, cache);
+    if (node->key == NULL) { // siquiera puede pasar esto?
+        lrunode_destroy(prio);
+        free(node);
+        return NULL;
+    }
+
+    memcpy(node->key, key, key_size);
+
+    // Asignamos memoria y setteamos el valor
+    node->val = dynalloc(val_size, cache);
+    if (node->val == NULL) {
+        lrunode_destroy(prio);
+        free(node->key);
+        free(node);
+        return NULL;
+    }
+
+    memcpy(node->val, val, val_size);
+
+    // Setteamos la prioridad
     node->prio  = prio;
 
     return node;

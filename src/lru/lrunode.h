@@ -1,10 +1,10 @@
 #ifndef __LRU_NODE_H__
 #define __LRU_NODE_H__
 
-#include "../hashmap/hashnode.h"
+// Forward declaration
+typedef struct Cache* Cache;
 
 typedef struct LRUNode* LRUNode;
-
 typedef struct HashNode* HashNode;
 
 
@@ -14,7 +14,7 @@ typedef struct HashNode* HashNode;
  * 
  * @return Un puntero al LRUNode nuevo. 
  */
-LRUNode lrunode_create();
+LRUNode lrunode_create(Cache cache);
 
 
 /**

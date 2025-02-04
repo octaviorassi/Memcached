@@ -2,7 +2,8 @@
 #define __HASH_NODE_H__
 
 #include <stdio.h>
-#include "../lru/lrunode.h"
+#include "../src/cache/cache.h"
+#include "../dynalloc/dynalloc.h"
 #include "../helpers/results.h"
 
 /** TODO:
@@ -10,9 +11,10 @@
  *  1.  Hacer chequeos o no en los gets. Por ejemplo, si el puntero es nulo, que devuelvo en get_key? Vale la pena?
  */
 
-typedef struct HashNode* HashNode;
-
+// Forward-declaration de LRUNode para evitar incluirla
 typedef struct LRUNode* LRUNode;
+
+typedef struct HashNode* HashNode;
 
 
 /**
@@ -20,9 +22,10 @@ typedef struct LRUNode* LRUNode;
  * 
  * @param key Clave del nodo.
  * @param val Valor asociado a la clave del nodo.
+ * @param cache Puntero a la cache donde se insertara el nodo.
  * @return Un puntero al nodo creado, que es NULL si falla al asignarse memoria.
  */
-HashNode hashnode_create(int key, int val);
+HashNode hashnode_create(int key, int val, Cache cache);
 
 /**
  * @brief Destruye el nodo objetivo, liberando la memoria asociada. Se asume que el nodo ya esta 'limpio'.
@@ -61,6 +64,11 @@ HashNode hashnode_lookup_node(int key, HashNode node);
  * @return 0 si es exitoso, 1 si se produjo un error.
  */
 int hashnode_clean(HashNode node);
+
+
+
+
+// ! Obs: los setters para key y val van a tener que tomar a Cache como parametro para poder llamar a dynalloc.
 
 
 /**

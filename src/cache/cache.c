@@ -3,6 +3,7 @@
 #include "cache.h"
 #include "../hashmap/hashnode.h"
 #include "../lru/lru.h"
+#include "../lru/lrunode.h"
 
 // ? borrar
 typedef pthread_mutex_t Lock;
@@ -10,18 +11,30 @@ typedef pthread_mutex_t Lock;
 #define N_LOCKS 10
 #define N_BUCKETS 100
 
+
 struct Cache {
 
+  // Hash
   HashFunction        hash_function;
   HashNode*           buckets;
   int                 n_buckets;
   pthread_mutex_t*    zone_locks[N_LOCKS];
 
+  // LRUQueue
   LRUQueue  queue;
-  
+
   int       stats;
 
 };
+
+// Prototipos de las static para no declararlas en el .h
+int hashmap_init(HashFunction hash, int n_buckets, Cache cache);
+int hashmap_destroy(Cache cache);
+int cache_get_bucket_number(int key, Cache cache);
+int cache_get_key_lock(int key, Cache cache);
+int cache_release_key_lock(int key, Cache cache);
+int cache_lock_zone_mutex(int bucket_number, Cache cache);
+int cache_unlock_zone_mutex(int bucket_number, Cache cache);
 
 Cache cache_create(HashFunction hash, int n_buckets) { 
 
@@ -34,7 +47,7 @@ Cache cache_create(HashFunction hash, int n_buckets) {
     return NULL;
   }
 
-  LRUQueue queue = lru_queue_create();
+  LRUQueue queue = lru_queue_create(cache);
   if (queue == NULL) {
     hashmap_destroy(cache);
     free(cache);
@@ -124,7 +137,7 @@ int cache_put(int key, int val, Cache cache) {
   }
 
   // Si no estaba en la cache, lo insertamos.
-  node = hashnode_create(key, val);
+  node = hashnode_create(key, val, cache);
 
   if (node == NULL) {
     // todo: Aca debe implementarse la politica de desalojo
@@ -199,6 +212,56 @@ void cache_stats(Cache cache) { return; }
 
 void cache_destroy(Cache cache) { return; }
 
+size_t cache_free_up_memory(Cache cache) {
+
+  if (cache == NULL)
+    return 0;
+
+  HashNode evicted_node = lru_queue_evict(cache->queue);
+
+  // Calculamos la memoria del nodo aproximadamente.
+  // todo: mejorarlo.
+  size_t freed_size = hashnode_get_key_size(evicted_node) +
+                      hashnode_get_val_size(evicted_node) +
+                      sizeof(HashNode);
+
+  hashnode_clean(evicted_node);
+  hashnode_destroy(evicted_node);
+
+  return freed_size;
+
+}
+
+LRUQueue cache_get_lruqueue(Cache cache) {
+  return cache == NULL ? NULL : cache->queue;
+}
+
+int cache_lock_all_zones(Cache cache) {
+
+  if (cache == NULL)
+    return -1;
+
+  int status = 0;
+  for (int i = 0; i < N_LOCKS; i++)
+    status = pthread_mutex_lock(cache->zone_locks[i]) || status;
+
+  return status;
+
+}
+
+int cache_unlock_all_zones(Cache cache) {
+
+  if (cache == NULL) 
+    return -1;
+
+  int status = 0;
+  for (int i = 0; i < N_LOCKS; i++)
+    status = pthread_mutex_lock(cache->zone_locks[i]) || status;
+
+  return status;
+
+}
+
 
 /* ************************* 
    *       AUXILIARES      * 
@@ -210,7 +273,7 @@ int hashmap_init(HashFunction hash, int n_buckets, Cache cache) {
     cache->hash_function = hash;
 
     // Asignamos memoria para los buckets, no hace falta inicializarlos, el insert lo hara.
-    HashNode* buckets = malloc(sizeof(HashNode) * n_buckets);
+    HashNode* buckets = dynalloc(sizeof(HashNode) * n_buckets, cache);
     if (buckets == NULL)
         return -1;
 

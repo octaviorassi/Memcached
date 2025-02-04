@@ -15,9 +15,9 @@ struct LRUQueue {
 
 };
 
-LRUQueue lru_queue_create() { 
+LRUQueue lru_queue_create(Cache cache) { 
   
-  pthread_mutex_t* lock = malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), cache);
   if (lock == NULL)
     return NULL;
 
@@ -26,7 +26,7 @@ LRUQueue lru_queue_create() {
     return NULL;
   }
 
-  LRUQueue queue = malloc(sizeof(struct LRUQueue));
+  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), cache);
   if (queue == NULL) {
     free(lock);
     return NULL;
@@ -38,6 +38,65 @@ LRUQueue lru_queue_create() {
   return queue;
   
 }
+
+static inline int lru_queue_lock(LRUQueue q) {
+  return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
+}
+
+static inline int lru_queue_unlock(LRUQueue q) {
+  return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
+}
+
+static inline int lru_node_is_clean(LRUNode node) {
+  return  lrunode_get_prev(node) == NULL &&
+          lrunode_get_next(node) == NULL;
+}
+
+static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
+
+  if (node == NULL) 
+    return NULL;
+
+  /** I.    El previo lru de node pasa a ser el mas reciente de q.
+   *  II.   Si el mas reciente es no nulo, su siguiente pasa a ser node.
+   *  III.  El mas reciente de la cola pasa a ser node.
+   *  IV.   El siguiente de node es siempre NULL.
+   */
+
+  lrunode_set_prev(node, q->most_recent);
+  lrunode_set_next(q->most_recent, node);
+
+  q->most_recent = node;
+
+  // Si es el primer nodo a insertar, tambien es el menos reciente.
+  if (q->least_recent == NULL)
+    q->least_recent = node; 
+
+  lrunode_set_next(node, NULL);
+
+  return node;
+
+}
+
+void lru_queue_node_clean(LRUNode node, LRUQueue q) { 
+  
+  LRUNode prev = lrunode_get_prev(node);
+  LRUNode next = lrunode_get_next(node);
+
+  lrunode_set_next(prev, next);
+  lrunode_set_prev(next, prev);
+
+  LRUNode lr = q->least_recent;
+  LRUNode mr = q->most_recent;
+
+  if (lr == node)
+    q->least_recent = lrunode_get_next(lr);
+
+  if (mr == node)
+    q->most_recent  = lrunode_get_prev(mr);
+
+}
+
 
 LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
 
@@ -51,7 +110,7 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
     lru_queue_node_clean(node, q);
 
   // Y luego lo agregamos al inicio
-  LRUNode node = lru_queue_add_recent(node, q);
+  node = lru_queue_add_recent(node, q);
 
   lru_queue_unlock(q);
   
@@ -129,63 +188,7 @@ int lru_queue_delete(LRUNode node, LRUQueue q) {
  *  -----------------------------------
  */
 
-static inline int lru_queue_lock(LRUQueue q) {
-  return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
-}
 
-static inline int lru_queue_unlock(LRUQueue q) {
-  return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
-}
 
-static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
 
-  if (node == NULL) 
-    return NULL;
-
-  /** I.    El previo lru de node pasa a ser el mas reciente de q.
-   *  II.   Si el mas reciente es no nulo, su siguiente pasa a ser node.
-   *  III.  El mas reciente de la cola pasa a ser node.
-   *  IV.   El siguiente de node es siempre NULL.
-   */
-
-  lrunode_set_prev(node, q->most_recent);
-  lrunode_set_next(q->most_recent, node);
-
-  q->most_recent = node;
-
-  // Si es el primer nodo a insertar, tambien es el menos reciente.
-  if (q->least_recent == NULL)
-    q->least_recent = node; 
-
-  lrunode_set_next(node, NULL);
-
-  return node;
-
-}
-
-static void lru_queue_node_clean(LRUNode node, LRUQueue q) { 
-  
-  LRUNode prev = lrunode_get_prev(node);
-  LRUNode next = lrunode_get_next(node);
-
-  lrunode_set_next(prev, next);
-  lrunode_set_prev(next, prev);
-
-  LRUNode lr = q->least_recent;
-  LRUNode mr = q->most_recent;
-
-  if (lr == node)
-    q->least_recent = lrunode_get_next(lr);
-
-  if (mr == node)
-    q->most_recent  = lrunode_get_prev(mr);
-
-  return 0;
-
-}
-
-static inline int lru_node_is_clean(LRUNode node) {
-  return  lrunode_get_prev(node) == NULL &&
-          lrunode_get_next(node) == NULL;
-}
 

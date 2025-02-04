@@ -1,11 +1,15 @@
 #ifndef __LRU_H__
 #define __LRU_H__
 
-#include "../hashmap/hashnode.h"
+#include "../src/cache/cache.h"
+#include "../dynalloc/dynalloc.h"
 
-typedef struct LRUQueue* LRUQueue;
-
+// Forward-declarations para no incluir sus header files
+typedef struct HashNode* HashNode;
 typedef struct LRUNode* LRUNode;
+
+// Estructuras opacas
+typedef struct LRUQueue* LRUQueue;
 
 /**
  *  @brief Inicializa una LRU vacia.
@@ -52,6 +56,9 @@ int lru_queue_destroy(LRUQueue q);
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */
 int lru_queue_delete(LRUNode node, LRUQueue q);
+
+// todo
+void lru_queue_node_clean(LRUNode node, LRUQueue q);
 
 
 #endif // __LRU_H__

@@ -1,10 +1,11 @@
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+#include "../dynalloc/dynalloc.h"
 #include "../helpers/results.h"
-#include "../hashmap/hashmap.h"
 
 typedef struct Cache* Cache;
+typedef int (*HashFunction)(int);
 
 /**
  *  @brief Inicializa una Cache con funcion de hash \a hash y cantidad de
@@ -62,5 +63,39 @@ void cache_stats(Cache cache);
  *  @param cache La cache a destruir.
  */
 void cache_destroy(Cache cache);
+
+
+/**
+ *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
+ * 
+ *  `IMPORTANTE` El thread que invoque a esta funcion debe poseer todos los locks de zonas y ademas el lock de la LRUQueue.
+ * 
+ *  @param cache La cache donde se liberara memoria.
+ *  @return Un aproximado del tamaño del bloque liberado.
+ */
+size_t cache_free_up_memory(Cache cache);
+
+
+/**
+ *  @brief Adquiere el lock de todos los mutex zonales de la cache. 
+ * 
+ *  @param cache La cache objetivo.
+ *  @return 0 si es exitoso, distinto de 0 si no.
+ */
+int cache_lock_all_zones(Cache cache);
+
+
+/**
+ *  @brief Libera los locks de todos los mutex zonales de la cache. 
+ * 
+ *  @param cache La cache objetivo.
+ *  @return 0 si es exitoso, distinto de 0 si no.
+ */
+int cache_unlock_all_zones(Cache cache);
+
+/* auxiliares */
+
+int cache_lock_zone_mutex(int bucket_number, Cache cache);
+int cache_unlock_zone_mutex(int bucket_number, Cache cache);
 
 #endif // __CACHE_H__
