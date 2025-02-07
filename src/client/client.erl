@@ -1,100 +1,155 @@
 -module(client).
--export([start/1, put/2, del/1, get/1, stats/0, client/1]).
+-export([start/1, put/2, del/1, get/1, stats/0, client/1, startDefault/0]).
 -include("protocol.hrl").
+
+-define(BUCKET_FACTOR, 10).
+-record(serverMap, {size, servers, identifier}).
 
 -define(PRINT(Value), io:format("[Debug] ~p~n", [Value])).
 
--define(BUCKET_FACTOR, 10).
 
--record(serverMap, {size, servers}).
-
-
-
-create_socket(ServerInfo) ->
-  {IpAddress, Port} = ServerInfo,
-  {ok, Socket} = socket:open(inet, stream, tcp),
-  ok = socket:connect(Socket, #{family => inet,
-                                addr   => string_to_ip(IpAddress),
-                                port   => Port}),
-  Socket.
-
-
-create_sockets(ServerList) -> 
-  lists:map(fun create_socket/1, ServerList). % A cada par IP,Puerto le asignamos un socket
-
-
-string_to_ip(StringIP) -> 
-  {ok, IpAddress} = inet:parse_address(StringIP),
-  IpAddress.
-
-%                     0          1              n
-% ServerList :: [ {ip0, p0}, {ip1, p1},..., {ipn, pn}] 
 start(ServerList) ->
 
-  % Eliminamos repetidos de ServerList (Opcional, podrias desear que tengas mas 
-  % referencias a determinado Server.
-
   Length = length(ServerList),
+  Sockets = utils:create_sockets(ServerList), % Ver como administrar errores
   
-  % Creamos tantos sockets como servidores nos hayan pasado y los ponemos en una lista
-  Sockets = create_sockets(ServerList),
-  
-  % Hacemos la lista de Buckets, en donde a cada uno le corresponde un socket
-  % su posicion, modulo Length * BUCKET_FACTOR en la lista de Sockets
   Servers = [lists:nth((I rem Length) + 1, Sockets) || I <- lists:seq(0, Length * ?BUCKET_FACTOR - 1)],
-
   ServerMap = #serverMap{size = Length, servers = Servers},
+  
   ClientPID = spawn(?MODULE, client, [ServerMap]),
   
-  register(client, ClientPID),
-  clientCreated.
+  register(client, ClientPID), % Lo registramos globalmente
+  
+  clientCreated. % Salio todo OK
   
 
-put(Key, Value) -> 
-  BinaryKey = term_to_binary(Key),
-  BinaryValue = term_to_binary(Value),
-  client ! {put, BinaryKey, BinaryValue, self()},
-  receive
-    {ok, Result} -> ?PRINT(Result)
+startDefault() ->
+  start([{"127.0.0.1", 8000}, {"127.0.0.1", 9000}]).
+
+
+put(Key, Value) ->
+
+  client ! { put, Key, Value, self() }, 
+
+  receive 
+    Response -> Response
   end.
+
 
 del(Key) -> 
-  BinaryKey = term_to_binary(Key),
-  clientPID ! {del, BinaryKey, self()}.
 
-get(Key) -> 
-  BinaryKey = term_to_binary(Key),
-  clientPID ! {del, BinaryKey, self()}.
+  client ! { del, Key, self() },
+  
+  receive 
+    Response -> Response
+  end.
 
-stats() -> 
-  clientPID ! {stats, self()}.
+get(Key) ->
+  client ! { get, Key, self() },
+  
+  receive 
+    Response -> Response
+  end.
 
-% Funcion que ejecuta el proceso cliente
-client(ServerMap) -> 
+stats() ->
+  client ! { stats, self() },
+  
+  receive 
+    Response -> Response
+  end.
+
+
+
+
+
+client(ServerMap) ->
+
+  % Cada parte del receive la podemos modularizar y quedaria mejor y mas simple
 
   receive
-    {put, Key, Value, PID}-> 
-      KeyLength = byte_size(Key),
-      ValueLength = byte_size(Value),
+    { put, Key, Value, PID } -> 
 
-      BinaryHash = crypto:hash(sha, Key),
-      MapIndex = binary:decode_unsigned(BinaryHash),
-      ?PRINT(MapIndex),
-      ?PRINT(ServerMap#serverMap.size),
-      ServerSocket = lists:nth((MapIndex rem (ServerMap#serverMap.size)) + 1, ServerMap#serverMap.servers),
+      {BinaryKey, KeyLength}     = utils:binary_convert(Key),
+      {BinaryValue, ValueLength} = utils:binary_convert(Value),
 
-      Message = <<?PUT:8/integer, KeyLength:32/integer, Key/binary, ValueLength:32/integer, Value/binary>>,
+      ServerSocket = get_server(BinaryKey, ServerMap),
 
-      ?PRINT(binary_to_list(Message)),
-      socket:send(ServerSocket, Message),
-      {ok, Respuesta} = socket:recv(ServerSocket),
-      PID ! {ok, Respuesta};
+      PutMessage = utils:create_message(?PUT, KeyLength, BinaryKey, ValueLength, BinaryValue),
 
-    {del, Key, PID}-> ok;
-    {get, Key, PID}-> ok;
-    {stats, PID}-> ok;
-    _ -> error(error) % No matchea ningun mensaje correcto
-  end.
+      gen_tcp:send(ServerSocket, PutMessage),
+      Response = utils:recv_bytes(ServerSocket, 1),
+
+      case  Response of 
+        <<?OK>>   -> PID ! ok;
+        <<?EBIG>> -> PID ! ebig 
+      end,
+
+      client(ServerMap);
+
+    { del, Key, PID } ->
+
+      {BinaryKey, KeyLength} = utils:binary_convert(Key),
+      ServerSocket = get_server(BinaryKey, ServerMap),
+
+      DelMessage = utils:create_message(?DEL, KeyLength, BinaryKey),
+
+      gen_tcp:send(ServerSocket, DelMessage),
+
+      Response = utils:recv_bytes(ServerSocket, 1),
+
+      case  Response of 
+        <<?OK>>   -> PID ! ok;
+        <<?ENOTFOUND>> -> PID ! enotfound 
+      end,
+
+      % Volvemos a entrar en loop
+      client(ServerMap);
+
+    { get, Key, PID } ->
+      
+      {BinaryKey, KeyLength} = utils:binary_convert(Key),
+      ServerSocket = get_server(BinaryKey, ServerMap),
+
+      GetMessage = utils:create_message(?GET, KeyLength, BinaryKey),
+
+      gen_tcp:send(ServerSocket, GetMessage),
+      
+      Response = utils:recv_bytes(ServerSocket, 1),
+
+      case  Response of 
+        <<?OK>>   -> 
+          <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
+          BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
+          Value = binary_to_term(BinaryValue),
+          PID ! {ok, Value};
+
+        <<?ENOTFOUND>> -> PID ! enotfound 
+      end,
+
+      % Volvemos a entrar en loop
+      client(ServerMap);
+
+    { stats, PID } -> PID;
+
+    Other -> 
+      error(error),
+      io:fwrite("[Error] Invalid request: ~p~n",[Other])
   
+  end.
 
+
+
+
+
+
+
+
+get_server(Key, ServerMap) ->
+
+    BinaryHash = crypto:hash(sha, Key),
+
+    MapIndex = binary:decode_unsigned(BinaryHash),
+    Index = (MapIndex rem (ServerMap#serverMap.size)) + 1,
+
+    lists:nth(Index, ServerMap#serverMap.servers).
 
