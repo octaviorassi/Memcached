@@ -19,7 +19,6 @@ struct HashMap {
 };
 
 
-
 HashMap hashmap_create(HashFunction hash, int n_buckets) {
 
     HashMap map = malloc(sizeof(struct HashMap));
@@ -50,6 +49,7 @@ HashMap hashmap_create(HashFunction hash, int n_buckets) {
 
 }
 
+
 HashNode hashmap_insert(int key, int val, HashMap map) { 
 
     HashNode node = hashnode_create(key, val);
@@ -76,6 +76,7 @@ HashNode hashmap_insert(int key, int val, HashMap map) {
 
 }
 
+
 HashNode hashmap_update(int key, int val, HashMap map) { 
 
     HashNode node = hashmap_lookup_node(key, map);
@@ -98,6 +99,7 @@ HashNode hashmap_update(int key, int val, HashMap map) {
 
 }
 
+
 LookupResult hashmap_lookup(int key, HashMap map) { 
 
     if (map == NULL)
@@ -117,6 +119,7 @@ LookupResult hashmap_lookup(int key, HashMap map) {
 
 }
 
+
 HashNode hashmap_lookup_node(int key, HashMap map) {
 
     if (map == NULL)
@@ -135,6 +138,7 @@ HashNode hashmap_lookup_node(int key, HashMap map) {
 
     return node;
 }
+
 
 void hashmap_destroy(HashMap map) { return; }
 

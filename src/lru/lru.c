@@ -15,9 +15,10 @@ struct LRUQueue {
 
 };
 
+
 LRUQueue lru_queue_create(Cache cache) { 
   
-  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), NULL, cache);
+  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), cache);
   if (lock == NULL)
     return NULL;
 
@@ -26,7 +27,7 @@ LRUQueue lru_queue_create(Cache cache) {
     return NULL;
   }
 
-  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), NULL, cache);
+  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), cache);
   if (queue == NULL) {
     free(lock);
     return NULL;
@@ -39,18 +40,22 @@ LRUQueue lru_queue_create(Cache cache) {
   
 }
 
-static inline int lru_queue_lock(LRUQueue q) {
+
+inline int lru_queue_lock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
 }
 
-static inline int lru_queue_unlock(LRUQueue q) {
+
+inline int lru_queue_unlock(LRUQueue q) {
   return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
 }
+
 
 static inline int lru_node_is_clean(LRUNode node) {
   return  lrunode_get_prev(node) == NULL &&
           lrunode_get_next(node) == NULL;
 }
+
 
 static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
 
@@ -77,6 +82,7 @@ static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) {
   return node;
 
 }
+
 
 void lru_queue_node_clean(LRUNode node, LRUQueue q) { 
   
@@ -118,15 +124,25 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
 
 }
 
+
 HashNode lru_queue_evict(LRUQueue q) {
 
   // Lockeamos la cola y obtenemos el ultimo nodo.
   if (q == NULL || lru_queue_lock(q) < 0)
     return 0;
 
+  int obtained_lock = 0;
   LRUNode lrunode = q->least_recent;
+  HashNode hashnode;
 
-  HashNode hashnode = lrunode_get_hash_node(lrunode);
+  while (!obtained_lock) {
+
+    HashNode hashnode = lrunode_get_hash_node(lrunode);
+
+    // hashnode_get_key()
+    // cache_trylock_key()
+
+  }
 
   lru_queue_node_clean(lrunode, q);
   lrunode_destroy(lrunode);
@@ -136,6 +152,12 @@ HashNode lru_queue_evict(LRUQueue q) {
   return hashnode;
 
 }
+
+
+LRUNode lru_queue_get_least_recent(LRUQueue q) {
+  return (q == NULL) ? NULL : q->least_recent;
+}
+
 
 int lru_queue_destroy(LRUQueue q) {
 
@@ -162,6 +184,7 @@ int lru_queue_destroy(LRUQueue q) {
   return 0;
 
 }
+
 
 int lru_queue_delete(LRUNode node, LRUQueue q) {
 

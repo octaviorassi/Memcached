@@ -17,6 +17,11 @@ typedef struct LRUQueue* LRUQueue;
  */
 LRUQueue lru_queue_create();
 
+int lru_queue_lock(LRUQueue q);
+
+int lru_queue_unlock(LRUQueue q);
+
+
 /**
  *  @brief Establece al nodo objetivo como el mas reciente de la cola, asumiendo que puede ya haber formado parte de la cola. 
  * 
@@ -38,6 +43,17 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q);
  * 
  */
 HashNode lru_queue_evict(LRUQueue q);
+
+/**
+ *  @brief Obtiene el puntero al nodo menos recientemente utilizado de la LRUQueue objetivo.
+ * 
+ *  `IMPORTANTE` Debe contarse con el lock de la LRUQueue al invocarse a esta funcion.
+ * 
+ *  @param q La LRUQueue objetivo. 
+ *  @return Un puntero al nodo menos utilizado, que es NULL en caso de que la cola este vacia.
+ * 
+ */
+LRUNode lru_queue_get_least_recent(LRUQueue q);
 
 /**
  *  @brief Destruye la cola LRU objetivo, liberando los recursos asignados sin liberar la memoria asociada a los nodos de la tabla hash. 

@@ -15,14 +15,19 @@ struct HashNode {
     struct LRUNode* prio;
 };
 
-int hashnode_keys_equal(const void* key_a, const void* key_b);
+int hashnode_keys_equal(const void* key_a, size_t size_a, const void* key_b, size_t size_b);
 
 
-HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, pthread_mutex_t* lock, Cache cache) {
+HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size, Cache cache) {
 
-    HashNode node = dynalloc(sizeof(struct HashNode), lock, cache);
+    // No es posible insertar un par sin una key que lo identifique.
+    if (key == NULL) return NULL;
+
+    HashNode node = dynalloc(sizeof(struct HashNode), cache);
     if (node == NULL)
         return NULL;
+
+    memset(node, 0, sizeof(struct HashNode));
 
     LRUNode prio = lrunode_create(cache);
     if (prio == NULL) {
@@ -30,28 +35,13 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
         return NULL;
     }
 
-    memset(node, 0, sizeof(struct HashNode));
-
-    // Asignamos memoria y setteamos la clave
-    node->key = dynalloc(key_size, lock, cache);
-    if (node->key == NULL) { // siquiera puede pasar esto?
-        lrunode_destroy(prio);
-        free(node);
-        return NULL;
-    }
-
-    memcpy(node->key, key, key_size);
+    // Setteamos la clave
+    node->key = key;
+    node->key_size = key_size;
 
     // Asignamos memoria y setteamos el valor
-    node->val = dynalloc(val_size, lock, cache);
-    if (node->val == NULL) {
-        lrunode_destroy(prio);
-        free(node->key);
-        free(node);
-        return NULL;
-    }
-
-    memcpy(node->val, val, val_size);
+    node->val = val;
+    node->val_size;
 
     // Setteamos la prioridad
     node->prio  = prio;
@@ -78,38 +68,29 @@ void hashnode_destroy(HashNode node) {
 
 }
 
-LookupResult hashnode_lookup(void* key, HashNode node) { 
-    // todo: podriamos tambien pasar el size_t por argumento y comenzar la comparacion preguntando si el size_t es el mismo
-    if (node == NULL)
-        return create_miss_lookup_result();
+LookupResult hashnode_lookup(void* key, size_t size, HashNode node) { 
 
-    int found = hashnode_keys_equal(hashnode_get_key(node), key);
+    while (node) {
+        if (hashnode_keys_equal(key, size, node->key, node->key_size))
+            return create_ok_lookup_result(node->val);
 
-    while (node && !found) {
-        node  = hashnode_get_next(node);
-        found = hashnode_keys_equal(hashnode_get_key(node), key);
+        node = node->next;
     }
 
-    return found ? create_ok_lookup_result(hashnode_get_val(node)) :
-                   create_miss_lookup_result();
+    return create_miss_lookup_result();
+
 }
 
-HashNode hashnode_lookup_node(void* key, HashNode node) {
+HashNode hashnode_lookup_node(void* key, size_t size, HashNode node) {
 
-    if (node == NULL)
-        return NULL;
+    while (node) {
+        if (hashnode_keys_equal(key, size, node->key, node->key_size))
+            return node;
 
-    
-    int found = hashnode_keys_equal(hashnode_get_key(node), key);
-
-    while (node && !found) {
-        node  = hashnode_get_next(node);
-        found = hashnode_keys_equal(hashnode_get_key(node), key);
+        node = node->next;
     }
 
-    // Si no lo encontre, node es NULL. Si lo encontre, node es el buscado.
-    return node;
-    
+    return NULL;    
 }
 
 int hashnode_clean(HashNode node) {
@@ -129,27 +110,34 @@ int hashnode_clean(HashNode node) {
 }
 
 // todo: ver como las vamos a comparar.
-int hashnode_keys_equal(const void* key_a, const void* key_b) { return 0; }
+int hashnode_keys_equal(const void* key_a, size_t size_a, const void* key_b, size_t size_b) { 
+
+    // PRINT("Comparacion: %s vs %s. Resultado: %i", key_a, key_b, size_a == size_b && memcmp(key_a, key_b, size_a) == 0);
+
+    if (key_a == NULL || key_b == NULL)
+        return 0;
+    
+    return size_a == size_b && (memcmp(key_a, key_b, size_a) == 0);
+
+}
 
 
 void* hashnode_get_key(HashNode node) {
     return node ? node->key : NULL;
 }
 
-int hashnode_set_key(HashNode node, void* key, size_t new_key_size, pthread_mutex_t* lock, Cache cache) {
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache) {
 
     if (node == NULL)
         return -1;
 
-    if (new_key_size != node->key_size)
-        node->key = dynrealloc(node->key, new_key_size, lock, cache);
+    if (node->key)
+        free(node->key);
 
-    if (node->key != NULL) {
-        memcpy(node->key, key, new_key_size);
-        return 0;
-    }
+    node->key = key;
+    node->key_size = new_key_size;
 
-    return -1;
+    return 0;
 
 }
 
@@ -157,20 +145,18 @@ void* hashnode_get_val(HashNode node) {
     return node ? node->val : NULL;
 }
 
-int hashnode_set_val(HashNode node, void* val, size_t new_val_size, pthread_mutex_t* lock, Cache cache) {
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache) {
 
     if (node == NULL)
         return -1;
 
-    if (new_val_size != node->val_size)
-        node->val = dynrealloc(node->val, new_val_size, lock, cache);
+    if (node->val)
+        free(node->val);
+    
+    node->val = val;
+    node->val_size = new_val_size;
 
-    if (node->val != NULL) {
-        memcpy(node->val, val, new_val_size);
-        return 0;
-    }
-
-    return -1;
+    return 0;
 
 }
 
