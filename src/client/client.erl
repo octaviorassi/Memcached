@@ -24,7 +24,7 @@ start(ServerList) ->
   
 
 startDefault() ->
-  start([{"127.0.0.1", 8000}, {"127.0.0.1", 9000}]).
+  start([{"127.0.0.1", 889}]).
 
 
 put(Key, Value) ->

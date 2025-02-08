@@ -1,4 +1,3 @@
-#include "memcached.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -12,53 +11,118 @@
 #include <wait.h>
 #include <fcntl.h>
 #include <stdlib.h>
-/*
-
-./memcached PUERTO MEMORIA
-./memcached puerto=PUERTO
-./memcached MEMORIA
-./memcached
-
- */
 
 
+typedef int Socket;
 
-#define PRINT_INT(x) printf("[Debug] %d\n", x)
-#define PRINT_LONG(x) printf("[Debug] %lu\n", x)
+// Todas son opcionales, y si no, tenemos valores default dependiendo de donde se esta corriendo
+// ./memcached -p <Port> -m <MemoryLimit> -n <NThreads>
+// ./memcached --port <Port> --memory <MemoryLimit> --nthreads 8 <NThreads>
 
-int main(int argc, char** argv) {
 
-  int port_number = atoi(argv[1]);
-  unsigned long memory_limit = strtoul(argv[2], NULL, 10);
+typedef struct {
 
-  PRINT_INT(port_number);
-  PRINT_LONG(memory_limit);
+  int port_number;
+  unsigned long memory_limit;
+  int number_threads;
+
+} Args;
+
+
+int parse_arguments(int argc, char** argv, Args* args) {
+
+  // Seteamos a defaults
+  args->port_number = 889;
+  args->number_threads = sysconf(_SC_NPROCESSORS_ONLN);
+  long pages = sysconf(_SC_PHYS_PAGES);
+  long page_size = sysconf(_SC_PAGE_SIZE);
+  unsigned long  total_ram = pages * page_size;
+  args->memory_limit = total_ram;
+
+
+  // Mejorar manejo de errores
+  for (int i = 0 ; i < argc ; i++) {
+
+    if (strcmp("-p", argv[i]) == 0 || strcmp("--port", argv[i]) == 0) {
+
+      args->port_number = atoi(argv[i+1]);
+
+    }
+
+    else if (strcmp("-m", argv[i]) == 0 || strcmp("--memory", argv[i]) == 0) {
+    
+      args->memory_limit = strtoul(argv[i+1], NULL, 10);
+
+    }
+
+    else if (strcmp("-n", argv[i]) == 0 || strcmp("--nthreads", argv[i]) == 0) {
+
+      args->number_threads = atoi(argv[i+1]);
+
+    }
+
+    else {
+
+      // Generar error
+    }
+  }
+  return 0; // Salio todo ok
+}
+
+
+Socket create_server_socket(int port) {
   
-  int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_socket < 0) quit("ERROR: SOCKET CREATION");
+  Socket server_socket = socket(AF_INET, SOCK_STREAM, 0);
+
+  int yes = 1;
+  setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
 
   struct sockaddr_in server_saddr;
   server_saddr.sin_family = AF_INET;
-  server_saddr.sin_port = htons(port_number);
+  server_saddr.sin_port = htons(port);
   server_saddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
   // Lo bindemos al puerto que nos pasaron
   bind(server_socket, (struct sockaddr*) &server_saddr, sizeof server_saddr);
-  listen(server_socket, 10);
+  listen(server_socket, 100);
 
-  // Sabemos que está siendo ejecutado con sudo (si es que queria bindearse a puerto privileagiado)
+  return server_socket;
+}
 
-  // Creamos socket TCP Stream
-  
-  // Cambiamos nuestros permisos - Capabilities
-
-
-  // Seteamos el limite de nuetra memoria
+int set_memory_limit(unsigned long memory_limit){
   struct rlimit rlim = {memory_limit, memory_limit};
   setrlimit(RLIMIT_DATA, &rlim);
-  
-  // Hacemos un execv sobre el server, pasandole el socket si es necesario  
-  execv("./server", socket_server);
 
+  return 1;
+}
+
+// Cambiar a Int
+void exec_server(char* program, Socket socket, int threads) {
+
+  char socket[100];
+  char threads[100];
+  sprintf(socket, "%d", socket);
+  sprintf(threads, "%d", threads);
+
+  execl(program, program, socket, threads, NULL);
+
+}
+
+
+int main(int argc, char** argv) {
+
+  Args args;
+  parse_arguments(argc, argv, &args); 
+  
+  printf("[Port] %d\n", args.port_number);
+  printf("[Memory] %ld Bytes\n", args.memory_limit);
+  printf("[Threads] %d\n", args.number_threads);
+
+  Socket server_socket = create_server_socket(args.port_number);
+
+  set_memory_limit(args.memory_limit);
+
+  exec_server("./server", server_socket, args.number_threads);
+ 
   return 0;
 }
