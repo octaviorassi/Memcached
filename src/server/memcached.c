@@ -22,9 +22,9 @@ typedef int Socket;
 
 typedef struct {
 
-  int port_number;
+  int port;
   unsigned long memory_limit;
-  int number_threads;
+  int num_threads;
 
 } Args;
 
@@ -32,8 +32,8 @@ typedef struct {
 int parse_arguments(int argc, char** argv, Args* args) {
 
   // Seteamos a defaults
-  args->port_number = 889;
-  args->number_threads = sysconf(_SC_NPROCESSORS_ONLN);
+  args->port = 889;
+  args->num_threads = sysconf(_SC_NPROCESSORS_ONLN);
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
   unsigned long  total_ram = pages * page_size;
@@ -45,7 +45,7 @@ int parse_arguments(int argc, char** argv, Args* args) {
 
     if (strcmp("-p", argv[i]) == 0 || strcmp("--port", argv[i]) == 0) {
 
-      args->port_number = atoi(argv[i+1]);
+      args->port = atoi(argv[i+1]);
 
     }
 
@@ -57,7 +57,7 @@ int parse_arguments(int argc, char** argv, Args* args) {
 
     else if (strcmp("-n", argv[i]) == 0 || strcmp("--nthreads", argv[i]) == 0) {
 
-      args->number_threads = atoi(argv[i+1]);
+      args->num_threads = atoi(argv[i+1]);
 
     }
 
@@ -68,8 +68,6 @@ int parse_arguments(int argc, char** argv, Args* args) {
   }
   return 0; // Salio todo ok
 }
-
-
 Socket create_server_socket(int port) {
   
   Socket server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -88,23 +86,20 @@ Socket create_server_socket(int port) {
 
   return server_socket;
 }
-
 int set_memory_limit(unsigned long memory_limit){
   struct rlimit rlim = {memory_limit, memory_limit};
   setrlimit(RLIMIT_DATA, &rlim);
 
   return 1;
 }
-
-// Cambiar a Int
 void exec_server(char* program, Socket socket, int threads) {
 
-  char socket[100];
-  char threads[100];
-  sprintf(socket, "%d", socket);
-  sprintf(threads, "%d", threads);
+  char socket_buffer[100];
+  char threads_buffer[100];
+  sprintf(socket_buffer, "%d", socket);
+  sprintf(threads_buffer, "%d", threads);
 
-  execl(program, program, socket, threads, NULL);
+  execl(program, program, socket_buffer, threads_buffer, NULL);
 
 }
 
@@ -114,15 +109,14 @@ int main(int argc, char** argv) {
   Args args;
   parse_arguments(argc, argv, &args); 
   
-  printf("[Port] %d\n", args.port_number);
+  printf("[Port] %d\n", args.port);
   printf("[Memory] %ld Bytes\n", args.memory_limit);
-  printf("[Threads] %d\n", args.number_threads);
+  printf("[Threads] %d\n", args.num_threads);
 
-  Socket server_socket = create_server_socket(args.port_number);
-
+  Socket server_socket = create_server_socket(args.port);
   set_memory_limit(args.memory_limit);
 
-  exec_server("./server", server_socket, args.number_threads);
+  exec_server("./server", server_socket, args.num_threads);
  
   return 0;
 }
