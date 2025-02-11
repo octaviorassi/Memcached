@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -O2 -Isrc
+CFLAGS = -Isrc -g
 
 # CFLAGS = -Wall -Wextra -O2 -Isrc
 
@@ -11,27 +11,31 @@ BIN_DIR = bin
 
 # Source files
 SRC_CACHE = $(SRC_DIR)/cache/cache.c
+SRC_CACHE_STATS = $(SRC_DIR)/cache/cache_stats.c
 SRC_DYNALLOC = $(SRC_DIR)/dynalloc/dynalloc.c
 SRC_LRU = $(SRC_DIR)/lru/lru.c
 SRC_LRUNODE = $(SRC_DIR)/lru/lrunode.c
 SRC_HASHMAP = $(SRC_DIR)/hashmap/hashnode.c
 SRC_HELPERS = $(SRC_DIR)/helpers/results.c
+SRC_ATOM_COUNTER = $(SRC_DIR)/helpers/atom_counter.c
 SRC_APP = $(SRC_DIR)/app/main.c
 
 # Object files
 OBJ_CACHE = $(OBJ_DIR)/cache/cache.o
+OBJ_CACHE_STATS = $(OBJ_DIR)/cache/cache_stats.o
 OBJ_DYNALLOC = $(OBJ_DIR)/dynalloc/dynalloc.o
 OBJ_LRU = $(OBJ_DIR)/lru/lru.o
 OBJ_LRUNODE = $(OBJ_DIR)/lru/lrunode.o
 OBJ_HASHMAP = $(OBJ_DIR)/hashmap/hashnode.o
 OBJ_HELPERS = $(OBJ_DIR)/helpers/results.o
+OBJ_ATOM_COUNTER = $(OBJ_DIR)/helpers/atom_counter.o
 OBJ_APP = $(OBJ_DIR)/app/main.o
 
 # All object files
-OBJS = $(OBJ_CACHE) $(OBJ_DYNALLOC) $(OBJ_LRU) $(OBJ_LRUNODE) $(OBJ_HASHMAP) $(OBJ_HELPERS) $(OBJ_APP)
+OBJS = $(OBJ_CACHE) $(OBJ_CACHE_STATS) $(OBJ_DYNALLOC) $(OBJ_LRU) $(OBJ_LRUNODE) $(OBJ_HASHMAP) $(OBJ_HELPERS) $(OBJ_ATOM_COUNTER) $(OBJ_APP)
 
 # Output executable
-TARGET = $(BIN_DIR)/my_program
+TARGET = $(BIN_DIR)/memcached
 
 # Default target
 all: $(TARGET)
@@ -42,7 +46,12 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Compile cache.c
-$(OBJ_CACHE): $(SRC_CACHE)
+$(OBJ_CACHE): $(SRC_CACHE) $(SRC_DIR)/cache/cache_stats.h
+	@mkdir -p $(OBJ_DIR)/cache
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Compile cache_stats.c
+$(OBJ_CACHE_STATS): $(SRC_CACHE_STATS) $(SRC_DIR)/cache/cache_stats.h $(SRC_DIR)/helpers/atom_counter.h
 	@mkdir -p $(OBJ_DIR)/cache
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -68,6 +77,11 @@ $(OBJ_HASHMAP): $(SRC_HASHMAP)
 
 # Compile results.c
 $(OBJ_HELPERS): $(SRC_HELPERS)
+	@mkdir -p $(OBJ_DIR)/helpers
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Compile atom_counter.c
+$(OBJ_ATOM_COUNTER): $(SRC_ATOM_COUNTER) $(SRC_DIR)/helpers/atom_counter.h
 	@mkdir -p $(OBJ_DIR)/helpers
 	$(CC) $(CFLAGS) -c -o $@ $<
 
