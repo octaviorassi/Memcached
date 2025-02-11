@@ -37,12 +37,20 @@ void* thread_func(void* arg) {
     int thread_id = args->thread_id;
     Cache cache = args->cache;  // Cache is already a pointer, no need to dereference
     char* keys[KEY_COUNT];
+    char* keysGet[KEY_COUNT];
     int* vals[VAL_COUNT];
 
     // Generate unique keys and values for this thread
     for (int i = 0; i < KEY_COUNT; i++) {
+        
         keys[i] = dynalloc(KEY_SIZE, cache);
         if (!keys[i]) {
+            PRINT("Thread %d: failed to allocate memory for key %d", thread_id, i);
+            return NULL;
+        }
+        
+        keysGet[i] = dynalloc(KEY_SIZE, cache);
+        if (!keysGet[i]) {
             PRINT("Thread %d: failed to allocate memory for key %d", thread_id, i);
             return NULL;
         }
@@ -56,11 +64,10 @@ void* thread_func(void* arg) {
 
         // Generate a unique key for this thread
         snprintf(keys[i], KEY_SIZE, "key_%d_%d", thread_id, i);
+        snprintf(keysGet[i], KEY_SIZE, "key_%d_%d", thread_id, i);
         *vals[i] = thread_id * KEY_COUNT + i;  // Unique value for each key
-    }
 
-    // Insert key-value pairs into the cache
-    for (int i = 0; i < KEY_COUNT; i++) {
+
         int result = cache_put(keys[i], strlen(keys[i]), vals[i], VAL_SIZE, cache);
         PRINT("Inserte el par clave valor numero %i.", i);
         if (result != 0) {
@@ -69,14 +76,17 @@ void* thread_func(void* arg) {
 
         if (i == KEY_COUNT / 2)
             cache_stats(cache);
-        // PRINT("Thread %d: succedeed in inserting key-value pair: %s / %i", thread_id, keys[i], *vals[i]);
+        
     }
+
 
     cache_stats(cache);
 
+
+
     // Retrieve keys from the cache
     for (int i = 0; i < KEY_COUNT; i++) {
-        LookupResult lr = cache_get(keys[i], strlen(keys[i]), cache);
+        LookupResult lr = cache_get(keysGet[i], strlen(keys[i]), cache);
 
         if (lookup_result_is_ok(lr)) {
             int retrieved_value = *((int*)lookup_result_get_value(lr));
@@ -101,7 +111,7 @@ void* thread_func(void* arg) {
         }
     }
     */
-
+   
     return NULL;
 }
 
@@ -133,7 +143,7 @@ int main() {
         return 1;
     }
 
-    const int NUM_THREADS = 8;
+    const int NUM_THREADS = 1;
     pthread_t threads[NUM_THREADS];
     ThreadArgs thread_args[NUM_THREADS];
 

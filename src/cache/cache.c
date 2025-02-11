@@ -181,7 +181,9 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   cache->buckets[bucket_number] = node;
 
   lrunode_set_bucket_number(hashnode_get_prio(node), bucket_number);
+  lrunode_set_hash_node(hashnode_get_prio(node), node);
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
+
 
   pthread_mutex_unlock(lock);
 
@@ -308,6 +310,8 @@ size_t cache_free_up_memory(Cache cache) {
 
   while (!got_key && lru_last_node != NULL) {
 
+    PRINT("jorgelin\n");
+
     lru_last_node = lrunode_get_next(lru_last_node);
     if (lru_last_node == NULL)
       continue;
@@ -327,7 +331,11 @@ size_t cache_free_up_memory(Cache cache) {
 
   // Al salir del while, tengo el lock del HashNode asociado a lru_last_node o no hay mas nodos en la LRUQueue.
   // todo: agregar que vuelva a intentar? ej. que largue el lock y espere
-  if (!got_key) return 0;
+  if (!got_key) {
+    lru_queue_unlock(cache->queue);
+    return 0;
+    
+    }
 
   // Calculamos la memoria del nodo aproximadamente.
   // todo: mejorarlo.
