@@ -14,8 +14,7 @@ typedef struct Cache* Cache;
 typedef unsigned long (*HashFunction)(void* );
 
 /**
- *  @brief Inicializa una Cache con funcion de hash \a hash y cantidad de
- *  buckets \a n_buckets.
+ *  @brief Inicializa una Cache con funcion de hash \a hash.
  * 
  *  @param hash Funcion de hash a utilizar.
  * 
@@ -41,7 +40,9 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache);
  *  de desalojo preestablecida para liberar memoria.
  * 
  *  @param key La clave.
- *  @param val El valor asociado.
+ *  @param key_size El tamaño de la clave.
+ *  @param val El valor.
+ *  @param val_size El tamaño del valor.
  *  @param cache La cache objetivo.
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */

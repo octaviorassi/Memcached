@@ -8,13 +8,21 @@ typedef struct LRUNode* LRUNode;
 typedef struct HashNode* HashNode;
 
 
-
 /**
- * @brief Crea un nuevo LRUNode vacio.
+ *  @brief Crea un nuevo LRUNode vacio.
  * 
- * @return Un puntero al LRUNode nuevo. 
+ *  @param Cache La cache a la que pertenece la LRUQueue donde se insertara el nodo.
+ *  @return Un puntero al LRUNode nuevo. 
  */
 LRUNode lrunode_create(Cache cache);
+
+/**
+ *  @brief Devuelve un booleano representando si el nodo LRU esta 'limpio'. Diremos que esta limpio si no esta conectado a ningun nodo LRU.
+ * 
+ *  @param node El nodo LRU objetivo.
+ *  @return 1 si esta limpio, 0 si no.
+ */
+int lru_node_is_clean(LRUNode node);
 
 
 /**
@@ -64,5 +72,20 @@ HashNode lrunode_get_hash_node(LRUNode node);
  * @param hash_node Puntero al nuevo nodo hash.
  */
 void lrunode_set_hash_node(LRUNode node, HashNode hash_node);
+
+/**
+ * @brief Obtiene el numero de bucket del hashnode asociado a `node`.
+ * @param node Puntero al nodo LRU.
+ * @return El nmero de bucket del hash node asociado a `node`.
+ * 
+ */
+unsigned int lrunode_get_bucket_number(LRUNode node);
+
+/**
+ * @brief Establece el numero de bucket del nodo objetivo.
+ * @param node Puntero al nodo LRU.
+ * @param bucket_number Numero de bucket del hash node asociado a `node`.
+ */
+void lrunode_set_bucket_number(LRUNode node, unsigned int bucket_number);
 
 #endif // __LRU_NODE_H__

@@ -9,6 +9,7 @@ struct CacheStats {
     AtomCounter get_counter;
     AtomCounter del_counter;
 
+    AtomCounter evict_counter;
     AtomCounter key_counter;
 
 };
@@ -25,6 +26,7 @@ CacheStats cache_stats_create() {
     stats->get_counter = atom_counter_create(0);
     stats->del_counter = atom_counter_create(0);
 
+    stats->evict_counter = atom_counter_create(0);
     stats->key_counter = atom_counter_create(0);
 
     return stats;
@@ -65,6 +67,15 @@ int cache_stats_key_counter_inc(CacheStats cstats) {
 
 int cache_stats_key_counter_dec(CacheStats cstats) {
     return atom_counter_dec(cstats->key_counter);
+}
+
+
+int cache_stats_evict_counter_inc(CacheStats cstats) {
+    return atom_counter_inc(cstats->evict_counter);
+}
+
+int cache_stats_evictcounter_dec(CacheStats cstats) {
+    return atom_counter_dec(cstats->evict_counter);
 }
 
 
@@ -111,7 +122,7 @@ void cache_stats_show(CacheStats cstats, char* buf) {
     printf("╗\n");
 
     // Print the title
-    printf("║ %-*s ║\n", max_length, "CACHE STATS");
+    printf("║ %-*s  ║\n", max_length, "CACHE STATS");
 
     // Print a separator line
     printf("╠");
@@ -122,7 +133,10 @@ void cache_stats_show(CacheStats cstats, char* buf) {
     printf("║ PUTS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->put_counter));
     printf("║ GETS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->get_counter));
     printf("║ DELS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->del_counter));
+    
+    printf("║ EVICTS: %-*u║\n", max_length - 5, atom_counter_get(cstats->evict_counter));
     printf("║ KEYS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->key_counter));
+
 
     // Print the bottom border of the box
     printf("╚");
@@ -139,6 +153,8 @@ int cache_stats_destroy(CacheStats cstats) {
     atom_counter_destroy(cstats->put_counter);
     atom_counter_destroy(cstats->get_counter);
     atom_counter_destroy(cstats->del_counter);
+
+    atom_counter_destroy(cstats->evict_counter);
     atom_counter_destroy(cstats->key_counter);
 
     free(cstats);

@@ -14,7 +14,7 @@ struct Cache {
 
   // Hash
   HashFunction        hash_function;
-  
+    
   HashNode            buckets[N_BUCKETS];
   int                 n_buckets;
   pthread_mutex_t*    zone_locks[N_LOCKS];
@@ -67,7 +67,6 @@ Cache cache_create(HashFunction hash) {
     return NULL;
   }
 
-  // todo: pensar que va en stats, es un placeholder esto
   CacheStats stats = cache_stats_create();
   if (stats == NULL) {
     hashmap_destroy(cache);
@@ -90,12 +89,13 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
     return create_error_lookup_result();
 
   // Calculamos el bucket
+  // ! Observacion. Aca no hay race conditions porque key no pertenece a la cache, es el puntero al buffer donde acabamos de leer la clave.
   int bucket_number = cache_get_bucket_number(key, cache);
 
   if (bucket_number < 0)
     return create_error_lookup_result();
 
-  // Obtenemos su lock asociado y un puntero al inicio
+  // Obtenemos el lock asociado junto con su bucket
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
     return create_error_lookup_result();
@@ -118,6 +118,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
   void* val = hashnode_get_val(node);
 
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
+  PRINT("Inserte en la LRUQueue. Contador de items de la cola: %i", lru_queue_get_count(cache->queue));
 
   pthread_mutex_unlock(lock);
 
@@ -133,10 +134,9 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   if (cache == NULL)
     return -1;
 
-  // Calculamos el bucket number y obtenemos su lock asociado.
+  // Calculamos el bucket number, lockeamos su zona y obtenemos el bucket.
+  // ! IMPORTANTE. Actualmente aca hay race conditions, porque para hashear necesito acceder al valor que apunta la key pero no es posible que tenga el lock al momento de hashear (pues aun no se que lock le corresponde). Esto no es un problema cuando consideramos que en la memcached real la memoria a la que apunta esta key no es posible que ya este en la cache pues la asignamos por fuera antes de insertarla.
   int bucket_number = cache_get_bucket_number(key, cache);
-  // PRINT("bucket_number calculado para %s: %i", key, bucket_number);
-
   if (bucket_number < 0)
     return -1;
 
@@ -147,15 +147,14 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   pthread_mutex_lock(lock);
 
   HashNode bucket = cache->buckets[bucket_number];
-  // PRINT("Direccion del bucket donde insertaremos a %s: %p", key, bucket);
 
+  // Buscamos el nodo asociado a la clave en el bucket correspondiente.
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
-  // PRINT("%s logro terminar la busqueda", key);
 
+  // Lo encuentre o no, la operacion de PUT se llevo a cabo.
   cache_stats_put_counter_inc(cache->stats);
 
-  // La clave ya tenia un valor asociado en la cache. 
-  // Actualizamos su valor y prioridad.
+  // La clave ya pertenecia a la cache, actualizamos valor y prioridad.
   if (node != NULL) {
     hashnode_set_val(node, val, val_size, cache);
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
@@ -163,9 +162,8 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
     return 0;
   }
 
-  // Si no estaba en la cache, lo insertamos.
+  // La clave no estaba en la cache, la insertamos.
   node = hashnode_create(key, key_size, val, val_size, cache);
-  // PRINT("Direccion del nodo creado para %s: %p", key, node);
 
   if (node == NULL) {
     pthread_mutex_unlock(lock);
@@ -182,6 +180,7 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   hashnode_set_next(node, bucket);
   cache->buckets[bucket_number] = node;
 
+  lrunode_set_bucket_number(hashnode_get_prio(node), bucket_number);
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
 
   pthread_mutex_unlock(lock);
@@ -207,6 +206,8 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
    *  el nodo, devolvemos el mutex y retornamos.
    */
 
+  // Calculamos el bucket, pedimos su lock y obtenemos el bucket.
+  // ! Aca tambien hay race conditions al acceder a key. Nuevamente, no es un problema cuando podemos asumir que key no es un puntero que forme parte de la cache.
   unsigned int bucket_number = cache_get_bucket_number(key, cache);
 
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
@@ -217,19 +218,27 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 
   HashNode bucket = cache->buckets[bucket_number];
 
+  // Buscamos si la clave ya pertenecia al bucket.
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
-  // La clave no pertenecia a la cache
+  // La clave no pertenecia a la cache, devolvemos el lock y retornamos.
   if (node == NULL) {
     pthread_mutex_unlock(lock);
     return 1; // > 0 es un miss, < 0 es un error
   }
 
-  // La clave estaba en la cache: borramos de la cola LRU.
-  lru_queue_node_clean(hashnode_get_prio(node), cache->queue);
-  lrunode_destroy(hashnode_get_prio(node));
+  // ? Este orden es correcto? 
+  // ! No esta bueno que la cache tenga que lockear la LRU para limpiar el nodo, pero tampoco podemos hacer que lru_queue_node_clean sea thread-safe.
 
-  // PRINT("Logre eliminar de la LRU a %s.", key); 
+  // La clave estaba en la cache: borramos de la cola LRU.
+  lru_queue_lock(cache->queue);
+
+  // ! revisar si siempre esta bien limpiar.
+  lru_queue_node_clean(hashnode_get_prio(node), cache->queue); 
+
+  lru_queue_unlock(cache->queue);
+
+  lrunode_destroy(hashnode_get_prio(node));
 
   // Y liberamos la memoria que se le habia asignado.
   hashnode_clean(node); 
@@ -253,7 +262,24 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 void cache_stats(Cache cache) { cache_stats_show(cache->stats, NULL); }
 
 
-void cache_destroy(Cache cache) { return; }
+void cache_destroy(Cache cache) { 
+
+  if (cache == NULL)
+    return;
+  
+  // Destruimos la LRUQueue
+  lru_queue_destroy(cache->queue);
+
+  // Destruimos los nodos que queden en la hash
+  hashmap_destroy(cache);
+
+  // Y destruimos las CacheStats
+  cache_stats_destroy(cache->stats);
+
+  // Por ultimo, liberamos la cache.
+  free(cache);
+
+}
 
 
 size_t cache_free_up_memory(Cache cache) {
@@ -261,22 +287,39 @@ size_t cache_free_up_memory(Cache cache) {
   if (cache == NULL)
     return 0;
 
-  lru_queue_lock(cache->queue);
+  if (lru_queue_lock(cache->queue) != 0)
+    return 0;
   
   LRUNode lru_last_node = lru_queue_get_least_recent(cache->queue);
-  HashNode hashnode = lrunode_get_hash_node(lru_last_node);
-  pthread_mutex_t* zone_lock = cache_get_key_mutex(hashnode_get_key(hashnode), cache);
 
-  // todo: pasar tambien por argumento si tengo algun lock para compararlo y no hacer el trylock en ese caso, pues ya lo tenemos.
+  // La LRU estaba vacia
+  if (lru_last_node == NULL) {
+    PRINT("La LRUQueue estaba vacia. El contador de elementos da: %i", lru_queue_get_count(cache->queue));
+    lru_queue_unlock(cache->queue);
+    return 0;
+  }
+
+  pthread_mutex_t* zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
+
+  HashNode hashnode = lrunode_get_hash_node(lru_last_node);
+
+  // todo: pasar por argumento el puntero a mi lock, para que si tengo que eliminar ahi no lo pida y elimine directamente.
   int got_key = pthread_mutex_trylock(zone_lock) == 0;
 
   while (!got_key && lru_last_node != NULL) {
 
     lru_last_node = lrunode_get_next(lru_last_node);
+    if (lru_last_node == NULL)
+      continue;
 
     hashnode = lrunode_get_hash_node(lru_last_node);
 
-    zone_lock = cache_get_key_mutex(hashnode_get_key(hashnode), cache);
+    zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
+
+    if (zone_lock == NULL) {
+      PRINT("Me dieron un lock NULL para pedir. Continuando.");
+      continue;
+    }
 
     got_key = pthread_mutex_trylock(zone_lock) == 0;
 
@@ -293,10 +336,12 @@ size_t cache_free_up_memory(Cache cache) {
                       sizeof(HashNode);
 
   // Eliminamos al LRUNode de la LRUQueue
+  PRINT("El nodo LRU que pude lockear es %s.", lru_last_node == NULL ? "NULL" : "no NULL");
   lru_queue_node_clean(lru_last_node, cache->queue);
-  lru_queue_delete(lru_last_node, cache->queue);
+  lrunode_destroy(lru_last_node);
 
   // Y lo eliminamos del hashmap.
+  PRINT("LRU Policy applied. Deleting node with key: %s", hashnode_get_key(hashnode));
   hashnode_clean(hashnode);
   hashnode_destroy(hashnode);
 
@@ -304,9 +349,44 @@ size_t cache_free_up_memory(Cache cache) {
   pthread_mutex_unlock(zone_lock);
   lru_queue_unlock(cache->queue);
 
+  cache_stats_evict_counter_inc(cache->stats);
+
   return freed_size;
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 LRUQueue cache_get_lruqueue(Cache cache) {
@@ -349,7 +429,7 @@ pthread_mutex_t* cache_get_key_mutex(void* key, Cache cache) {
 
   unsigned int bucket_number = cache->hash_function(key) % cache->n_buckets;
 
-  return cache->zone_locks[bucket_number];
+  return cache->zone_locks[bucket_number % N_LOCKS];
 
 }
 
@@ -373,14 +453,12 @@ static int hashmap_init(HashFunction hash, Cache cache) {
 
     cache->hash_function = hash;
 
-    // Asignamos memoria para los buckets, no hace falta inicializarlos, el insert lo hara.
-    HashNode* buckets = dynalloc(sizeof(HashNode) * N_BUCKETS, cache);
-    if (buckets == NULL)
-        return -1;
+    memset(cache->buckets, 0, sizeof(HashNode) * N_BUCKETS);
 
     cache->n_buckets = N_BUCKETS;
 
-    // Inicializamos los locks
+    // Inicializamos los locks 
+    // ? tiene sentido hacerlos dinamicos? si van a ser N_LOCKS
     int mutex_error = 0;
     for (int i = 0; i < N_LOCKS; i++) {
       cache->zone_locks[i] = malloc(sizeof(pthread_mutex_t));
@@ -399,11 +477,35 @@ static int hashmap_destroy(Cache cache) {
   if (cache == NULL)
     return 0;
 
-  // ya no es necesario el free si no los asigno dinamicamente.
-  // free(cache->buckets);
+  // Tomamos todos los locks
+  cache_lock_all_zones(cache);
 
-  for (int i = 0; i < N_LOCKS; i++)
+  // Y pasamos a recorrer cada bucket destruyendo todos los nodos.
+  HashNode tmp, next;
+
+  for (int i = 0; i < N_BUCKETS; i++) {
+
+    tmp = cache->buckets[i];
+
+    while (tmp) {
+
+      next = hashnode_get_next(tmp);
+
+      // No importa 'limpiarlos' pues vamos a destruir a todos.
+      hashnode_destroy(tmp);
+
+      tmp = next;
+
+    }
+
+  }
+
+  // Y destruimos todos los pthread_mutex_t
+  for (int i = 0; i < N_LOCKS; i++) {
     pthread_mutex_destroy(cache->zone_locks[i]);
+    free(cache->zone_locks[i]);
+  }
+
 
   return 0;
 

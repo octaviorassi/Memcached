@@ -15,6 +15,7 @@ struct HashNode {
     struct LRUNode* prio;
 };
 
+
 int hashnode_keys_equal(const void* key_a, size_t size_a, const void* key_b, size_t size_b);
 
 
@@ -29,6 +30,7 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
 
     memset(node, 0, sizeof(struct HashNode));
 
+    // ? cambiar esto? capaz hacer una funcion en lrunode.c que se encargue
     LRUNode prio = lrunode_create(cache);
     if (prio == NULL) {
         free(node);
@@ -55,15 +57,13 @@ void hashnode_destroy(HashNode node) {
     if (node == NULL)
         return;
 
-    // Liberamos la clave y el valor
+    // Liberamos la clave y el valor.
     if (node->key)
         free(node->key);
     
     if (node->val)
         free(node->val);
 
-    // lrunode_destroy(node->prio);
-    
     free(node);
 
 }
@@ -120,6 +120,10 @@ int hashnode_keys_equal(const void* key_a, size_t size_a, const void* key_b, siz
     return size_a == size_b && (memcmp(key_a, key_b, size_a) == 0);
 
 }
+
+
+
+
 
 
 void* hashnode_get_key(HashNode node) {

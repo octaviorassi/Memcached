@@ -16,6 +16,9 @@ int cache_stats_get_counter_dec(CacheStats cstats);
 int cache_stats_del_counter_inc(CacheStats cstats);
 int cache_stats_del_counter_dec(CacheStats cstats);
 
+int cache_stats_evict_counter_inc(CacheStats cstats);
+int cache_stats_evict_counter_dec(CacheStats cstats);
+
 int cache_stats_key_counter_inc(CacheStats cstats);
 int cache_stats_key_counter_dec(CacheStats cstats);
 

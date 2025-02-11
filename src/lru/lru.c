@@ -13,11 +13,18 @@ struct LRUQueue {
 
   pthread_mutex_t* lock; 
 
+  int count;  
+
 };
+
+
+inline int lru_queue_lock(LRUQueue q);
+inline int lru_queue_unlock(LRUQueue q);
 
 
 LRUQueue lru_queue_create(Cache cache) { 
   
+  // ? tiene sentido asignarlo dinamicamente? al pedo
   pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), cache);
   if (lock == NULL)
     return NULL;
@@ -40,27 +47,28 @@ LRUQueue lru_queue_create(Cache cache) {
   
 }
 
+/**
+ * Casos borde:
+ * 1. Cuando la queue esta vacia.         CHECK.
+ * 2. Cuando la queue tiene un elemento.
+ *  a. Y el que setteo es ese elemento.   CHECK
+ *  b. Y el que setteo es uno nuevo.      CHECK
+ * 3. Cuando tiene dos elementos.
+ *  a. Y el setteado es el least_recent.  CHECK
+ *  b. Y el setteado es el most_recent.   CHECK
+ *  c. Y el setteado es nuevo.            CHECK
+ */
 
-inline int lru_queue_lock(LRUQueue q) {
-  return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
-}
+LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
 
-
-inline int lru_queue_unlock(LRUQueue q) {
-  return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
-}
-
-
-static inline int lru_node_is_clean(LRUNode node) {
-  return  lrunode_get_prev(node) == NULL &&
-          lrunode_get_next(node) == NULL;
-}
-
-
-static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) { 
-
-  if (node == NULL) 
+  if (node == NULL || q == NULL)
     return NULL;
+
+  lru_queue_lock(q);
+
+  // Si ya formaba parte de la cola, lo desconectamos.
+  if (!lru_node_is_clean(node))
+    lru_queue_node_clean(node, q);
 
   /** I.    El previo lru de node pasa a ser el mas reciente de q.
    *  II.   Si el mas reciente es no nulo, su siguiente pasa a ser node.
@@ -79,6 +87,10 @@ static LRUNode lru_queue_add_recent(LRUNode node, LRUQueue q) {
 
   lrunode_set_next(node, NULL);
 
+  q->count++;
+
+  lru_queue_unlock(q);
+  
   return node;
 
 }
@@ -92,40 +104,23 @@ void lru_queue_node_clean(LRUNode node, LRUQueue q) {
   lrunode_set_next(prev, next);
   lrunode_set_prev(next, prev);
 
+  q->count--;
+
   LRUNode lr = q->least_recent;
   LRUNode mr = q->most_recent;
 
   if (lr == node)
-    q->least_recent = lrunode_get_next(lr);
+    q->least_recent = next;
 
   if (mr == node)
-    q->most_recent  = lrunode_get_prev(mr);
-
-}
-
-
-LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
-
-  if (node == NULL)
-    return NULL;
-
-  lru_queue_lock(q);
-
-  // Si ya formaba parte de la cola, lo desconectamos.
-  if (!lru_node_is_clean(node))
-    lru_queue_node_clean(node, q);
-
-  // Y luego lo agregamos al inicio
-  node = lru_queue_add_recent(node, q);
-
-  lru_queue_unlock(q);
-  
-  return node;
+    q->most_recent  = prev;
 
 }
 
 
 HashNode lru_queue_evict(LRUQueue q) {
+
+  // ! En desuso.
 
   // Lockeamos la cola y obtenemos el ultimo nodo.
   if (q == NULL || lru_queue_lock(q) < 0)
@@ -155,6 +150,7 @@ HashNode lru_queue_evict(LRUQueue q) {
 
 
 LRUNode lru_queue_get_least_recent(LRUQueue q) {
+  PRINT("La queue es NULL? %s.", q == NULL ? "Si" : "No");
   return (q == NULL) ? NULL : q->least_recent;
 }
 
@@ -178,7 +174,10 @@ int lru_queue_destroy(LRUQueue q) {
 
   lru_queue_unlock(q);
 
+  // Destruimos el mutex
   pthread_mutex_destroy(q->lock);
+  free(q->lock);
+
   free(q);
 
   return 0;
@@ -202,15 +201,26 @@ int lru_queue_delete(LRUNode node, LRUQueue q) {
   
 }
 
-
+int lru_queue_get_count(LRUQueue q) { 
+  return q ? q->count : 0;
+}
 
 
 
 /** -----------------------------------
- *  Funciones auxiliares no exportadas.
+ *        Funciones auxiliares 
  *  -----------------------------------
  */
 
+
+inline int lru_queue_lock(LRUQueue q) {
+  return (q == NULL) ? -1 : pthread_mutex_lock(q->lock);
+}
+
+
+inline int lru_queue_unlock(LRUQueue q) {
+  return (q == NULL) ? -1 : pthread_mutex_unlock(q->lock);
+}
 
 
 

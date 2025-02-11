@@ -13,9 +13,11 @@ typedef struct LRUQueue* LRUQueue;
 
 /**
  *  @brief Inicializa una LRU vacia.
+ * 
+ *  @param Cache La cache donde se utilizara la LRUQueue a crear.
  *  @return La LRUQueue generada.
  */
-LRUQueue lru_queue_create();
+LRUQueue lru_queue_create(Cache cache);
 
 int lru_queue_lock(LRUQueue q);
 
@@ -23,7 +25,7 @@ int lru_queue_unlock(LRUQueue q);
 
 
 /**
- *  @brief Establece al nodo objetivo como el mas reciente de la cola, asumiendo que puede ya haber formado parte de la cola. 
+ *  @brief Establece al nodo objetivo como el mas reciente de la cola, asumiendo que puede ya haber formado parte de la cola. Esta funcion es `thread-safe`.
  * 
  *  @param node El nodo objetivo.
  *  @param q La cola LRU. 
@@ -73,8 +75,16 @@ int lru_queue_destroy(LRUQueue q);
  */
 int lru_queue_delete(LRUNode node, LRUQueue q);
 
-// todo
+/**
+ *  @brief Limpia un nodo de la LRUQueue. Es decir, lo desconecta de sus vecinos, si es que tiene.
+ * 
+ *  `IMPORTANTE` Esta funcion NO es thread-safe. Debe de lockearse la LRUQueue previo a ser invocada.
+ * 
+ *  @param node El nodo a limpiar. 
+ *  @param q La cola LRU a la que pertenece.
+ */
 void lru_queue_node_clean(LRUNode node, LRUQueue q);
 
+int lru_queue_get_count(LRUQueue q);
 
 #endif // __LRU_H__

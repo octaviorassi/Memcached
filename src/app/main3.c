@@ -13,7 +13,7 @@ int main() {
     setbuf(stdout, NULL);
 
     // Creamos la cache
-    Cache cache = cache_create(kr_hash, 10);
+    Cache cache = cache_create(kr_hash  );
 
     // Definimos los pares key-value
     char* keys[KEY_COUNT];
@@ -89,7 +89,7 @@ int main2() {
     setbuf(stdout, NULL);
 
     // Creamos la cache
-    Cache cache = cache_create(kr_hash, 10);
+    Cache cache = cache_create(kr_hash);
 
     char name[] = "octavio";
     char* key = malloc(sizeof(name));

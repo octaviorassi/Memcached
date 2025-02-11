@@ -3,8 +3,11 @@
 #include "atom_counter.h"
 
 struct AtomCounter {
+
     unsigned int counter;
+
     pthread_mutex_t lock;
+    
 };
 
 
@@ -27,6 +30,7 @@ AtomCounter atom_counter_create(unsigned int initial_value) {
 }
 
 unsigned int atom_counter_get(AtomCounter counter) {
+
     if (counter == NULL)
         return 0;
     
