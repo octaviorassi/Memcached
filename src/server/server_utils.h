@@ -1,7 +1,24 @@
 #ifndef __SERVER_UTILS_H__
 #define __SERVER_UTILS_H__
 
+
+
+
 #define LENGTH 4
+
+Data* create_new_client_data(int socket);
+
+typedef enum {
+
+  PARSING_COMMAND,
+  PARSING_KEY_LEN,
+  PARSING_KEY,
+  PARSING_VALUE_LEN,
+  PARSING_VALUE,
+  PARSING_FINISHED
+
+} ParsingStage;
+
 
 typedef struct {
 
@@ -55,15 +72,5 @@ typedef struct {
 
 } ServerArgs;
 
-typedef enum {
 
-  PARSING_COMMAND,
-  PARSING_KEY_LEN,
-  PARSING_KEY,
-  PARSING_VALUE_LEN,
-  PARSING_VALUE,
-  PARSING_FINISHED
-
-} ParsingStage;
-
-#endif __SERVER_UTILS_H__
+#endif // __SERVER_UTILS_H__

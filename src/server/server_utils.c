@@ -1,5 +1,6 @@
 #include "server_utils.h"
 #include <sys/epoll.h>
+#include <stdio.h>
 
 int operations = 0;
 
@@ -200,3 +201,4 @@ Data* create_new_client_data(int client_socket) {
 
   return new_client_data;
 }
+
