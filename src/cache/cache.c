@@ -60,7 +60,7 @@ Cache cache_create(HashFunction hash) {
     return NULL;
   }
 
-  LRUQueue queue = lru_queue_create(cache);
+  LRUQueue queue = lru_queue_create();
   if (queue == NULL) {
     hashmap_destroy(cache);
     free(cache);
@@ -199,16 +199,6 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   if (cache == NULL)
     return -1;
   
-  /**
-   *   Calculamos su bucket.
-   *   Obtenemos el mutex del bucket.
-   *   Buscamos el nodo en el bucket.
-   *   Si no lo encontramos, liberamos el lock y retornamos.
-   *   Si lo encontramos, liberamos su LRUNode asociado, destruimos
-   *  el nodo, devolvemos el mutex y retornamos.
-   */
-
-  // Calculamos el bucket, pedimos su lock y obtenemos el bucket.
   // ! Aca tambien hay race conditions al acceder a key. Nuevamente, no es un problema cuando podemos asumir que key no es un puntero que forme parte de la cache.
   unsigned int bucket_number = cache_get_bucket_number(key, cache);
 
@@ -233,14 +223,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   // ! No esta bueno que la cache tenga que lockear la LRU para limpiar el nodo, pero tampoco podemos hacer que lru_queue_node_clean sea thread-safe.
 
   // La clave estaba en la cache: borramos de la cola LRU.
-  lru_queue_lock(cache->queue);
-
-  // ! revisar si siempre esta bien limpiar.
-  lru_queue_node_clean(hashnode_get_prio(node), cache->queue); 
-
-  lru_queue_unlock(cache->queue);
-
-  lrunode_destroy(hashnode_get_prio(node));
+  lru_queue_delete_node(hashnode_get_prio(node), cache->queue);
 
   // Y liberamos la memoria que se le habia asignado.
   hashnode_clean(node); 
@@ -249,6 +232,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   if (bucket == node)
     cache->buckets[bucket_number] = NULL;
 
+  // ! El destroy podria ser posterior a liberar el mutex realmente.
   hashnode_destroy(node);
   
   pthread_mutex_unlock(lock);
@@ -260,8 +244,11 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 
 }
 
+
 // todo: aca llenaria algun buffer con cache_stats_show() o algo asi
-void cache_stats(Cache cache) { cache_stats_show(cache->stats, NULL); }
+void cache_stats(Cache cache) {
+  if (cache) cache_stats_show(cache->stats, NULL);
+}
 
 
 void cache_destroy(Cache cache) { 
@@ -306,11 +293,10 @@ size_t cache_free_up_memory(Cache cache) {
   HashNode hashnode = lrunode_get_hash_node(lru_last_node);
 
   // todo: pasar por argumento el puntero a mi lock, para que si tengo que eliminar ahi no lo pida y elimine directamente.
+  // todo: emprolijar este while.
   int got_key = pthread_mutex_trylock(zone_lock) == 0;
 
   while (!got_key && lru_last_node != NULL) {
-
-    PRINT("jorgelin\n");
 
     lru_last_node = lrunode_get_next(lru_last_node);
     if (lru_last_node == NULL)
@@ -326,6 +312,10 @@ size_t cache_free_up_memory(Cache cache) {
     }
 
     got_key = pthread_mutex_trylock(zone_lock) == 0;
+    if (got_key)
+      PRINT("Obtuve el lock del nodo a expulsar.");
+    else
+      PRINT("El lock del nodo a expulsar ya estaba tomado.");
 
   }
 
@@ -334,8 +324,7 @@ size_t cache_free_up_memory(Cache cache) {
   if (!got_key) {
     lru_queue_unlock(cache->queue);
     return 0;
-    
-    }
+  }
 
   // Calculamos la memoria del nodo aproximadamente.
   // todo: mejorarlo.
@@ -349,7 +338,7 @@ size_t cache_free_up_memory(Cache cache) {
   lrunode_destroy(lru_last_node);
 
   // Y lo eliminamos del hashmap.
-  PRINT("LRU Policy applied. Deleting node with key: %s", hashnode_get_key(hashnode));
+  PRINT("LRU policy applied. Deleting node with key: %s", hashnode_get_key(hashnode));
   hashnode_clean(hashnode);
   hashnode_destroy(hashnode);
 
@@ -457,6 +446,7 @@ pthread_mutex_t* cache_get_key_mutex(void* key, Cache cache) {
       (no las exportamos)    
 */
 
+// todo: emprolijar manejo de memoria, liberar cuando retorna, etc.
 static int hashmap_init(HashFunction hash, Cache cache) {
 
     cache->hash_function = hash;
@@ -466,10 +456,13 @@ static int hashmap_init(HashFunction hash, Cache cache) {
     cache->n_buckets = N_BUCKETS;
 
     // Inicializamos los locks 
-    // ? tiene sentido hacerlos dinamicos? si van a ser N_LOCKS
+    // ? tiene sentido asignar dinamicamente los locks, si ya se que van a ser N_LOCKS?
     int mutex_error = 0;
     for (int i = 0; i < N_LOCKS; i++) {
       cache->zone_locks[i] = malloc(sizeof(pthread_mutex_t));
+      if (cache->zone_locks[i] == NULL)
+        return -1;
+
       mutex_error = mutex_error || pthread_mutex_init(cache->zone_locks[i],NULL);
     }
 

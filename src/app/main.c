@@ -8,10 +8,10 @@
 
 #include "cache/cache.h"
 
-#define KEY_SIZE 100
-#define KEY_COUNT 1000  
+#define KEY_SIZE 12
+#define KEY_COUNT 100
 #define VAL_SIZE sizeof(int)
-#define VAL_COUNT 1000 
+#define VAL_COUNT 100
 
 #define MEGABYTE 1000000
 #define GIGABYTE 1000 * MEGABYTE
@@ -35,7 +35,8 @@ void* thread_func(void* arg) {
 
     ThreadArgs* args = (ThreadArgs*)arg;
     int thread_id = args->thread_id;
-    Cache cache = args->cache;  // Cache is already a pointer, no need to dereference
+    Cache cache = args->cache;  
+    
     char* keys[KEY_COUNT];
     char* keysGet[KEY_COUNT];
     int* vals[VAL_COUNT];
@@ -68,7 +69,8 @@ void* thread_func(void* arg) {
         *vals[i] = thread_id * KEY_COUNT + i;  // Unique value for each key
 
 
-        int result = cache_put(keys[i], strlen(keys[i]), vals[i], VAL_SIZE, cache);
+        // ! Hago strlen sobre keysGet[i] porque puede que para cuando haga ese strlen ya me hayan tenido que liberar el keys[i].
+        int result = cache_put(keys[i], strlen(keysGet[i]), vals[i], VAL_SIZE, cache);
         PRINT("Inserte el par clave valor numero %i.", i);
         if (result != 0) {
             PRINT("Thread %d: failed to insert key-value pair: %s / %i", thread_id, keys[i], *vals[i]);
@@ -86,19 +88,22 @@ void* thread_func(void* arg) {
 
     // Retrieve keys from the cache
     for (int i = 0; i < KEY_COUNT; i++) {
-        LookupResult lr = cache_get(keysGet[i], strlen(keys[i]), cache);
+        LookupResult lr = cache_get(keysGet[i], strlen(keysGet[i]), cache);
 
+        /*
         if (lookup_result_is_ok(lr)) {
             int retrieved_value = *((int*)lookup_result_get_value(lr));
+
+            // ! Esto puede dar segfault si ya se libero vals[i].
             if (retrieved_value != *vals[i]) {
                 PRINT("Thread %d: GET mismatch for key %s: expected %i, got %i", thread_id, keys[i], *vals[i], retrieved_value);
             }
 
             // PRINT("Thread %d: got the pair %s / %i", thread_id, keys[i], retrieved_value);
 
-        } /* else {
+        }  else {
             PRINT("Thread %d: Failed to GET the key %s", thread_id, keys[i]);
-        }*/
+        } */
     }
 
 
@@ -143,7 +148,7 @@ int main() {
         return 1;
     }
 
-    const int NUM_THREADS = 1;
+    const int NUM_THREADS = 4;
     pthread_t threads[NUM_THREADS];
     ThreadArgs thread_args[NUM_THREADS];
 

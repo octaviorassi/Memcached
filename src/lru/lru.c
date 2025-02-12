@@ -22,10 +22,10 @@ inline int lru_queue_lock(LRUQueue q);
 inline int lru_queue_unlock(LRUQueue q);
 
 
-LRUQueue lru_queue_create(Cache cache) { 
+LRUQueue lru_queue_create() { 
   
   // ? tiene sentido asignarlo dinamicamente? al pedo
-  pthread_mutex_t* lock = dynalloc(sizeof(pthread_mutex_t), cache);
+  pthread_mutex_t* lock = malloc(sizeof(pthread_mutex_t));
   if (lock == NULL)
     return NULL;
 
@@ -34,7 +34,7 @@ LRUQueue lru_queue_create(Cache cache) {
     return NULL;
   }
 
-  LRUQueue queue = dynalloc(sizeof(struct LRUQueue), cache);
+  LRUQueue queue = malloc(sizeof(struct LRUQueue));
   if (queue == NULL) {
     free(lock);
     return NULL;
@@ -95,6 +95,22 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
 
 }
 
+int lru_queue_delete_node(LRUNode node, LRUQueue q) {
+
+  if (q == NULL || node == NULL)
+    return 1;
+
+  lru_queue_lock(q);
+
+  lru_queue_node_clean(node, q);
+
+  lru_queue_unlock(q);
+
+  lrunode_destroy(node);
+
+  return 0;
+
+}
 
 void lru_queue_node_clean(LRUNode node, LRUQueue q) { 
   
@@ -184,22 +200,6 @@ int lru_queue_destroy(LRUQueue q) {
 
 }
 
-
-int lru_queue_delete(LRUNode node, LRUQueue q) {
-
-  if (node == NULL)
-    return -1;
-
-  lru_queue_lock(q);
-
-  lru_queue_node_clean(node, q);
-  lrunode_destroy(node);
-
-  lru_queue_unlock(q);
-
-  return 0;
-  
-}
 
 int lru_queue_get_count(LRUQueue q) { 
   return q ? q->count : 0;

@@ -12,14 +12,16 @@ typedef struct LRUNode* LRUNode;
 typedef struct LRUQueue* LRUQueue;
 
 /**
- *  @brief Inicializa una LRU vacia.
+ *  @brief Crea una LRU vacia.
  * 
- *  @param Cache La cache donde se utilizara la LRUQueue a crear.
  *  @return La LRUQueue generada.
+ * 
  */
-LRUQueue lru_queue_create(Cache cache);
+LRUQueue lru_queue_create();
+
 
 int lru_queue_lock(LRUQueue q);
+
 
 int lru_queue_unlock(LRUQueue q);
 
@@ -68,12 +70,14 @@ int lru_queue_destroy(LRUQueue q);
 /**
  *  @brief Elimina el nodo objetivo de la cola LRU, liberando su memoria. No modifica la memoria asignada a su HashNode asociado.
  * 
+ *  Esta funcion es thread-safe. No debe poseerse el lock de la LRUQueue al invocarla.
+ * 
  *  @param node El nodo a eliminar.
  *  @param q La cola LRU a la que pertenece.
  *
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */
-int lru_queue_delete(LRUNode node, LRUQueue q);
+int lru_queue_delete_node(LRUNode node, LRUQueue q);
 
 /**
  *  @brief Limpia un nodo de la LRUQueue. Es decir, lo desconecta de sus vecinos, si es que tiene.

@@ -27,7 +27,7 @@ CacheStats cache_stats_create() {
     stats->del_counter = atom_counter_create(0);
 
     stats->evict_counter = atom_counter_create(0);
-    stats->key_counter = atom_counter_create(0);
+    stats->key_counter   = atom_counter_create(0);
 
     return stats;
 

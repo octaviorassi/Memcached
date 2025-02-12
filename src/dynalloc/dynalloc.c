@@ -8,6 +8,7 @@
 #define MAX_ATTEMPTS 2
 
 void* dynalloc(size_t sz, Cache cache) {
+    
     // Intentamos asignar memoria normalmente
     if (DYNALLOC_FAIL_RATE > 0 && (rand() % 100) < DYNALLOC_FAIL_RATE) {
 
@@ -36,7 +37,7 @@ void* dynalloc(size_t sz, Cache cache) {
     }
 
     if (attempts == MAX_ATTEMPTS) {
-        PRINT("Maximo de intentos de desalojo alcanzado.");
+        PRINT("Maximo de intentos de desalojo alcanzado. Asignando memoria a la fuerza.");
         void* ptr = malloc(sz);
         if (ptr)
             return ptr;
