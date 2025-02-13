@@ -1,4 +1,4 @@
-#include "server_utils.h"
+#include "cache_server_utils.h"
 #include <sys/epoll.h>
 #include <stdio.h>
 
@@ -60,9 +60,6 @@ void parse_request(Data* data) {
       // Cambio lo siguiente a hacer dependiendo del comando
       data->parsing_stage = data->command == STATS ? PARSING_FINISHED : PARSING_KEY_LEN;
       data->parsing_index = 0;
-
-      
-
       break;
 
     case PARSING_KEY_LEN:
@@ -115,6 +112,7 @@ void parse_request(Data* data) {
       break;
   }
 
+  if (data->parsing_stage != PARSING_FINISHED) parse_request(data); //? Ver si esto funciona bien
 }
 
 void handle_request(Data* data) {

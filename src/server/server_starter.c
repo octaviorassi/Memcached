@@ -1,4 +1,4 @@
-#include "starter_utils.h"
+#include "server_starter_utils.h"
 
 int main(int argc, char** argv) {
 
@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
 
   // Bajar privilegios o algo por el estilo
 
-  // exec_server("./server", server_socket, args.num_threads);
+  exec_server("./cache_server", server_socket, args.num_threads);
  
   return 0;
 }

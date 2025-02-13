@@ -1,4 +1,5 @@
-#include "starter_utils.h"
+#include "server_starter_utils.h"
+
 #include <string.h>
 #include <ctype.h>
 
@@ -14,9 +15,6 @@ static void show_usage() {
   printf("  -t, --threads <num_threads>   Set the number of threads of the server.\n");
 }
 
-
-
-
 static int check_for_usage(int argc, char** argv) {
   
   for (int i = 0 ; i < argc ; i++)
@@ -24,7 +22,6 @@ static int check_for_usage(int argc, char** argv) {
   
   return 0;
 }
-
 
 static int is_positive_integer(char* s) {
 
@@ -34,12 +31,11 @@ static int is_positive_integer(char* s) {
   return 1;
 }
 
-
-void parse_arguments(int argc, char** argv, Args* args) {
+int parse_arguments(int argc, char** argv, Args* args) {
 
   if (check_for_usage(argc, argv)) {
     show_usage();
-    return;
+    return 1;
   }
 
   // Seteamos a defaults

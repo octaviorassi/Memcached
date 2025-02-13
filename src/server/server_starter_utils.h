@@ -1,5 +1,5 @@
-#ifndef __STARTER_UTILS_H__
-#define __STARTER_UTILS_H__
+#ifndef __SERVER_STARTER_UTILS_H__
+#define __SERVER_STARTER_UTILS_H__
 
 #include <stdio.h>
 #include <unistd.h>
@@ -32,10 +32,12 @@ typedef struct {
 #include <ctype.h>
 
 int parse_arguments(int argc, char** argv, Args* args);
+
 Socket create_server_socket(int port);
+
 int set_memory_limit(unsigned long memory_limit);
+
 void exec_server(char* program, Socket socket, int threads);
 
 
-
-#endif // __STARTER_UTILS_H__
+#endif // __SERVER_STARTER_UTILS_H__

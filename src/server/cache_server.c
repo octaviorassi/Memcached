@@ -1,19 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <sys/epoll.h>
-#include <netinet/in.h>
-#include <wait.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <pthread.h>
 
-#include "server_utils.h"
+#include "cache_server_utils.h"
 
 #define GREEN   "\x1b[32m"
 #define RESET   "\x1b[0m"
