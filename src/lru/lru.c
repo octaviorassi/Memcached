@@ -47,18 +47,6 @@ LRUQueue lru_queue_create() {
   
 }
 
-/**
- * Casos borde:
- * 1. Cuando la queue esta vacia.         CHECK.
- * 2. Cuando la queue tiene un elemento.
- *  a. Y el que setteo es ese elemento.   CHECK
- *  b. Y el que setteo es uno nuevo.      CHECK
- * 3. Cuando tiene dos elementos.
- *  a. Y el setteado es el least_recent.  CHECK
- *  b. Y el setteado es el most_recent.   CHECK
- *  c. Y el setteado es nuevo.            CHECK
- */
-
 LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) { 
 
   if (node == NULL || q == NULL)
@@ -67,8 +55,7 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
   lru_queue_lock(q);
 
   // Si ya formaba parte de la cola, lo desconectamos.
-  if (!lru_node_is_clean(node))
-    lru_queue_node_clean(node, q);
+  lru_queue_node_clean(node, q);
 
   /** I.    El previo lru de node pasa a ser el mas reciente de q.
    *  II.   Si el mas reciente es no nulo, su siguiente pasa a ser node.
@@ -77,7 +64,7 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
    */
 
   lrunode_set_prev(node, q->most_recent);
-  lrunode_set_next(q->most_recent, node);
+  lrunode_set_next(q->most_recent, node); 
 
   q->most_recent = node;
 
@@ -94,6 +81,7 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
   return node;
 
 }
+
 
 int lru_queue_delete_node(LRUNode node, LRUQueue q) {
 
@@ -133,36 +121,8 @@ void lru_queue_node_clean(LRUNode node, LRUQueue q) {
 
 }
 
-
-HashNode lru_queue_evict(LRUQueue q) {
-
-  // ! En desuso.
-
-  // Lockeamos la cola y obtenemos el ultimo nodo.
-  if (q == NULL || lru_queue_lock(q) < 0)
-    return 0;
-
-  int obtained_lock = 0;
-  LRUNode lrunode = q->least_recent;
-  HashNode hashnode;
-
-  while (!obtained_lock) {
-
-    HashNode hashnode = lrunode_get_hash_node(lrunode);
-
-    // hashnode_get_key()
-    // cache_trylock_key()
-
-  }
-
-  lru_queue_node_clean(lrunode, q);
-  lrunode_destroy(lrunode);
-
-  lru_queue_unlock(q);
-
-  return hashnode;
-
-}
+// En desuso.
+HashNode lru_queue_evict(LRUQueue q) { return NULL; }
 
 
 LRUNode lru_queue_get_least_recent(LRUQueue q) {

@@ -42,11 +42,8 @@ unsigned long kr_hash(char* key) {
 }
 
 
-// Prototipos de las static para no declararlas en el .h
 static int hashmap_init(HashFunction hash, Cache cache);
 static int hashmap_destroy(Cache cache);
-
-pthread_mutex_t* cache_get_key_mutex(void* key, Cache cache);
 static unsigned int cache_get_bucket_number(void* key, Cache cache);
 static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
 
@@ -120,7 +117,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
   void* val = hashnode_get_val(node);
 
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
-  PRINT("Inserte en la LRUQueue. Contador de items de la cola: %i", lru_queue_get_count(cache->queue));
+  // PRINT("Inserte en la LRUQueue. Contador de items de la cola: %i", lru_queue_get_count(cache->queue));
 
   pthread_mutex_unlock(lock);
 
@@ -227,10 +224,10 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   // La clave estaba en la cache: borramos de la cola LRU.
   lru_queue_delete_node(hashnode_get_prio(node), cache->queue);
 
-  // Y liberamos la memoria que se le habia asignado.
+  // Lo desconectamos del hashmap y liberamos su memoria
   hashnode_clean(node); 
 
-  // Si era el unico nodo del bucket, debemos settear el bucket a NULL.
+  // Si era el unico nodo del bucket, node->next pasa a ser el bucket
   if (bucket == node)
     cache->buckets[bucket_number] = hashnode_get_next(node);
 
@@ -250,26 +247,6 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 // todo: aca llenaria algun buffer con cache_stats_show() o algo asi
 void cache_stats(Cache cache) {
   if (cache) cache_stats_show(cache->stats, NULL);
-}
-
-
-void cache_destroy(Cache cache) { 
-
-  if (cache == NULL)
-    return;
-  
-  // Destruimos la LRUQueue
-  lru_queue_destroy(cache->queue);
-
-  // Destruimos los nodos que queden en la hash
-  hashmap_destroy(cache);
-
-  // Y destruimos las CacheStats
-  cache_stats_destroy(cache->stats);
-
-  // Por ultimo, liberamos la cache.
-  free(cache);
-
 }
 
 
@@ -296,11 +273,11 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
 
     pthread_mutex_t* zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
 
-    if (zone_lock == NULL) {
-      continue;
-    }
+    // Si el zone_lock es NULL, se produjo algun error al pedirlo.
+    if (zone_lock == NULL) continue;
 
     unsigned int buck_num = lrunode_get_bucket_number(lru_last_node);
+    HashNode bucket = cache->buckets[buck_num];
 
     LRUNode next_node = lrunode_get_next(lru_last_node);
     HashNode hashnode = lrunode_get_hash_node(lru_last_node);
@@ -312,15 +289,18 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
       lrunode_destroy(lru_last_node);
 
       // Y lo eliminamos del hashmap.
-      cache->buckets[buck_num] = hashnode_get_next(hashnode);
+      if (bucket == hashnode)
+        cache->buckets[buck_num] = hashnode_get_next(hashnode);
       hashnode_clean(hashnode);
       hashnode_destroy(hashnode);
     
       pthread_mutex_unlock(zone_lock);
       cache_stats_evict_counter_inc(cache->stats);
-    
-      PRINT("Eliminando000");
+
       cant++;
+
+      PRINT("Expulse un nodo del bucket numero %i.", buck_num);
+
     }
 
     lru_last_node = next_node;
@@ -328,93 +308,28 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
   
   lru_queue_unlock(cache->queue);
   return cant;
+
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-LRUQueue cache_get_lruqueue(Cache cache) {
-  return cache == NULL ? NULL : cache->queue;
-}
-
-
-int cache_lock_all_zones(Cache cache) {
+void cache_destroy(Cache cache) { 
 
   if (cache == NULL)
-    return -1;
+    return;
+  
+  // Destruimos la LRUQueue
+  lru_queue_destroy(cache->queue);
 
-  int status = 0;
-  for (int i = 0; i < N_LOCKS; i++)
-    status = pthread_mutex_lock(cache->zone_locks[i]) || status;
+  // Destruimos los nodos que queden en la hash
+  hashmap_destroy(cache);
 
-  return status;
+  // Y destruimos las CacheStats
+  cache_stats_destroy(cache->stats);
 
-}
-
-
-int cache_unlock_all_zones(Cache cache) {
-
-  if (cache == NULL) 
-    return -1;
-
-  int status = 0;
-  for (int i = 0; i < N_LOCKS; i++)
-    status = pthread_mutex_lock(cache->zone_locks[i]) || status;
-
-  return status;
+  // Por ultimo, liberamos la cache.
+  free(cache);
 
 }
-
-
-pthread_mutex_t* cache_get_key_mutex(void* key, Cache cache) { 
-
-  if (cache == NULL)
-    return NULL;
-
-  unsigned int bucket_number = cache->hash_function(key) % cache->n_buckets;
-
-  return cache->zone_locks[bucket_number % N_LOCKS];
-
-}
-
-
-
-
-
-
-
-
 
 
 
@@ -424,40 +339,56 @@ pthread_mutex_t* cache_get_key_mutex(void* key, Cache cache) {
       (no las exportamos)    
 */
 
-// todo: emprolijar manejo de memoria, liberar cuando retorna, etc.
+/**
+ *  @brief Inicializa los campos asociados al HashMap de la cache, setteando a `hash` como funcion de hash.
+ * 
+ *  @param hash Funcion de hash a utilizar en la cache.
+ *  @param cache Puntero a la cache donde se inicializara el HashMap.
+ *  @return 0 si es exitoso, -1 en caso de producirse un error al inicializar el HashMap.
+ */
 static int hashmap_init(HashFunction hash, Cache cache) {
 
-    cache->hash_function = hash;
+  // todo: emprolijar manejo de memoria, liberar cuando retorna, etc.
+  
+  cache->hash_function = hash;
 
-    memset(cache->buckets, 0, sizeof(HashNode) * N_BUCKETS);
+  memset(cache->buckets, 0, sizeof(HashNode) * N_BUCKETS);
 
-    cache->n_buckets = N_BUCKETS;
+  cache->n_buckets = N_BUCKETS;
 
-    // Inicializamos los locks 
-    // ? tiene sentido asignar dinamicamente los locks, si ya se que van a ser N_LOCKS?
-    int mutex_error = 0;
-    for (int i = 0; i < N_LOCKS; i++) {
-      cache->zone_locks[i] = malloc(sizeof(pthread_mutex_t));
-      if (cache->zone_locks[i] == NULL)
-        return -1;
+  // Inicializamos los locks 
+  // ? tiene sentido asignar dinamicamente los locks, si ya se que van a ser N_LOCKS?
+  int mutex_error = 0;
+  for (int i = 0; i < N_LOCKS; i++) {
+    cache->zone_locks[i] = malloc(sizeof(pthread_mutex_t));
+    if (cache->zone_locks[i] == NULL)
+      return -1;
 
-      mutex_error = mutex_error || pthread_mutex_init(cache->zone_locks[i],NULL);
-    }
+    mutex_error = mutex_error || pthread_mutex_init(cache->zone_locks[i],NULL);
+  }
 
-    if (mutex_error)
-        return -1;
+  if (mutex_error)
+      return -1;
 
-    return 0;
+  return 0;
 
 }
 
+/**
+ *  @brief Destruye los campos asociados al HashMap de la cache objetivo.
+ * 
+ *  @param cache Puntero a la cache donde se destruira el HashMap.
+ *  @return 0 si es exitoso, distinto de 0 si se produce un error al liberar memoria.
+ */
 static int hashmap_destroy(Cache cache) {
 
   if (cache == NULL)
-    return 0;
+    return 1;
 
   // Tomamos todos los locks
-  cache_lock_all_zones(cache);
+  int status = 0;
+  for (int i = 0; i < N_LOCKS; i++)
+    status = pthread_mutex_lock(cache->zone_locks[i]) || status;
 
   // Y pasamos a recorrer cada bucket destruyendo todos los nodos.
   HashNode tmp, next;
@@ -490,6 +421,13 @@ static int hashmap_destroy(Cache cache) {
 
 }
 
+/**
+ *  @brief Calcula el numero de bucket asociado a `key` en la cache objetivo.
+ * 
+ *  @param key La clave de la cual queremos saber su numero de bucket.
+ *  @param cache La cache objetivo.
+ *  @return El numero de bucket asociado a la key en la cache.
+ */
 static unsigned int cache_get_bucket_number(void* key, Cache cache) {
   if (cache == NULL)
       return -1;
@@ -498,6 +436,13 @@ static unsigned int cache_get_bucket_number(void* key, Cache cache) {
 
 }
 
+/**
+ *  @brief Obtiene un puntero al mutex asociado al numero de bucket ingresado en la cache objetivo.
+ * 
+ *  @param bucket_number El numero de bucket para el cual queremos obtener su mutex.
+ *  @param cache La cache objetivo.
+ *  @return Un puntero al mutex asociado al bucket, que es `NULL` en caso de producirse un error o no existir.
+ */
 static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache) {
   if (cache == NULL)
     return NULL;

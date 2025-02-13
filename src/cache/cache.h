@@ -62,8 +62,20 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 int cache_delete(void* key, size_t key_size,  Cache cache);
 
 
-// todo
+/**
+ *  @brief todo
+ * 
+ *  @param cache La cache objetivo.
+ */
 void cache_stats(Cache cache);
+
+/**
+ *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
+ * 
+ *  @param cache La cache donde se liberara memoria.
+ *  @return Un aproximado del tamaño del bloque liberado, o 0 si no pudo eliminarse ningun nodo.
+ */
+int cache_free_up_memory(Cache cache, int);
 
 
 /**
@@ -74,14 +86,6 @@ void cache_stats(Cache cache);
  */
 void cache_destroy(Cache cache);
 
-
-/**
- *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
- * 
- *  @param cache La cache donde se liberara memoria.
- *  @return Un aproximado del tamaño del bloque liberado, o 0 si no pudo eliminarse ningun nodo.
- */
-int cache_free_up_memory(Cache cache, int);
 
 
 /**
