@@ -33,7 +33,9 @@ unsigned long kr_hash(char* key) {
   unsigned long hashval;
   unsigned long i;
 
-  for (i = 0, hashval = 0 ; i < strlen(key) ; ++i, key++)
+  size_t size = strlen(key);
+
+  for (i = 0, hashval = 0 ; i < size ; ++i, key++)
     hashval = *key + 31 * hashval;
   
   return hashval;
@@ -144,6 +146,7 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   if (lock == NULL)
     return -1;
   
+
   pthread_mutex_lock(lock);
 
   HashNode bucket = cache->buckets[bucket_number];
@@ -188,7 +191,6 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   pthread_mutex_unlock(lock);
 
   cache_stats_key_counter_inc(cache->stats);
-
   return 0;
 
 }
@@ -230,7 +232,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 
   // Si era el unico nodo del bucket, debemos settear el bucket a NULL.
   if (bucket == node)
-    cache->buckets[bucket_number] = NULL;
+    cache->buckets[bucket_number] = hashnode_get_next(node);
 
   // ! El destroy podria ser posterior a liberar el mutex realmente.
   hashnode_destroy(node);
@@ -271,13 +273,13 @@ void cache_destroy(Cache cache) {
 }
 
 
-size_t cache_free_up_memory(Cache cache) {
+int cache_free_up_memory(Cache cache, int number_to_free) {
 
   if (cache == NULL)
-    return 0;
+    return -1;
 
   if (lru_queue_lock(cache->queue) != 0)
-    return 0;
+    return -1;
   
   LRUNode lru_last_node = lru_queue_get_least_recent(cache->queue);
 
@@ -285,71 +287,47 @@ size_t cache_free_up_memory(Cache cache) {
   if (lru_last_node == NULL) {
     PRINT("La LRUQueue estaba vacia. El contador de elementos da: %i", lru_queue_get_count(cache->queue));
     lru_queue_unlock(cache->queue);
-    return 0;
+    return -1;
   }
 
-  pthread_mutex_t* zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
+  int cant = 0;
 
-  HashNode hashnode = lrunode_get_hash_node(lru_last_node);
+  while (lru_last_node != NULL && cant < number_to_free) {
 
-  // todo: pasar por argumento el puntero a mi lock, para que si tengo que eliminar ahi no lo pida y elimine directamente.
-  // todo: emprolijar este while.
-  int got_key = pthread_mutex_trylock(zone_lock) == 0;
-
-  while (!got_key && lru_last_node != NULL) {
-
-    lru_last_node = lrunode_get_next(lru_last_node);
-    if (lru_last_node == NULL)
-      continue;
-
-    hashnode = lrunode_get_hash_node(lru_last_node);
-
-    zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
+    pthread_mutex_t* zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
 
     if (zone_lock == NULL) {
-      PRINT("Me dieron un lock NULL para pedir. Continuando.");
       continue;
     }
 
-    got_key = pthread_mutex_trylock(zone_lock) == 0;
-    if (got_key)
-      PRINT("Obtuve el lock del nodo a expulsar.");
-    else
-      PRINT("El lock del nodo a expulsar ya estaba tomado.");
+    unsigned int buck_num = lrunode_get_bucket_number(lru_last_node);
 
+    LRUNode next_node = lrunode_get_next(lru_last_node);
+    HashNode hashnode = lrunode_get_hash_node(lru_last_node);
+    
+    if (pthread_mutex_trylock(zone_lock) == 0) { // Obtuviste el lock
+
+      // Eliminamos al LRUNode de la LRUQueue
+      lru_queue_node_clean(lru_last_node, cache->queue);
+      lrunode_destroy(lru_last_node);
+
+      // Y lo eliminamos del hashmap.
+      cache->buckets[buck_num] = hashnode_get_next(hashnode);
+      hashnode_clean(hashnode);
+      hashnode_destroy(hashnode);
+    
+      pthread_mutex_unlock(zone_lock);
+      cache_stats_evict_counter_inc(cache->stats);
+    
+      PRINT("Eliminando000");
+      cant++;
+    }
+
+    lru_last_node = next_node;
   }
-
-  // Al salir del while, tengo el lock del HashNode asociado a lru_last_node o no hay mas nodos en la LRUQueue.
-  // todo: agregar que vuelva a intentar? ej. que largue el lock y espere
-  if (!got_key) {
-    lru_queue_unlock(cache->queue);
-    return 0;
-  }
-
-  // Calculamos la memoria del nodo aproximadamente.
-  // todo: mejorarlo.
-  size_t freed_size = hashnode_get_key_size(hashnode) +
-                      hashnode_get_val_size(hashnode) +
-                      sizeof(HashNode);
-
-  // Eliminamos al LRUNode de la LRUQueue
-  PRINT("El nodo LRU que pude lockear es %s.", lru_last_node == NULL ? "NULL" : "no NULL");
-  lru_queue_node_clean(lru_last_node, cache->queue);
-  lrunode_destroy(lru_last_node);
-
-  // Y lo eliminamos del hashmap.
-  PRINT("LRU policy applied. Deleting node with key: %s", hashnode_get_key(hashnode));
-  hashnode_clean(hashnode);
-  hashnode_destroy(hashnode);
-
-  // Soltamos ambos locks y retornamos
-  pthread_mutex_unlock(zone_lock);
+  
   lru_queue_unlock(cache->queue);
-
-  cache_stats_evict_counter_inc(cache->stats);
-
-  return freed_size;
-
+  return cant;
 }
 
 

@@ -81,7 +81,7 @@ void cache_destroy(Cache cache);
  *  @param cache La cache donde se liberara memoria.
  *  @return Un aproximado del tamaño del bloque liberado, o 0 si no pudo eliminarse ningun nodo.
  */
-size_t cache_free_up_memory(Cache cache);
+int cache_free_up_memory(Cache cache, int);
 
 
 /**

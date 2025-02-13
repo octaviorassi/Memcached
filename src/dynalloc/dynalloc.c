@@ -9,40 +9,27 @@
 
 void* dynalloc(size_t sz, Cache cache) {
     
-    // Intentamos asignar memoria normalmente
-    if (DYNALLOC_FAIL_RATE > 0 && (rand() % 100) < DYNALLOC_FAIL_RATE) {
 
-        PRINT("Falla de DYNALLOC simulada. Debemos liberar memoria");
-
-    } else {
-
-        void* ptr = malloc(sz);
-        if (ptr != NULL)
-            return ptr;
-        
-        PRINT("No hay memoria suficiente. Debemos liberar memoria.");
-
-    }
+    void* ptr = malloc(sz);
+    if (ptr != NULL)
+        return ptr;
+    
+    PRINT("No hay memoria suficiente. Debemos liberar memoria.");
 
     // Liberamos memoria.
-    size_t total_freed = 0;
-    size_t freed_size = 0;
-    int attempts = 0;
+    int num_nodes_to_eliminate = 2;
+    int num_nodes_eliminated = 0;
+    int num_nodes_eliminated_acum = 0;
 
-    while (total_freed < 2 * sz && attempts < MAX_ATTEMPTS) {
-        freed_size = cache_free_up_memory(cache);
-        total_freed += freed_size;
+    while (num_nodes_eliminated_acum < num_nodes_to_eliminate) {
 
-        if (freed_size == 0) attempts++;
+        num_nodes_eliminated = cache_free_up_memory(cache, num_nodes_to_eliminate - num_nodes_eliminated_acum);
+        
+        if (num_nodes_eliminated < 0) return NULL;
+
+        num_nodes_eliminated_acum += num_nodes_eliminated;
     }
-
-    if (attempts == MAX_ATTEMPTS) {
-        PRINT("Maximo de intentos de desalojo alcanzado. Asignando memoria a la fuerza.");
-        void* ptr = malloc(sz);
-        if (ptr)
-            return ptr;
-    }
-
+ 
     // Ahora deberiamos poder asignar el bloque. Si no, intentamos de nuevo.
     return dynalloc(sz, cache);
 
@@ -58,8 +45,8 @@ void* dynrealloc(void* ptr, size_t sz, Cache cache) {
 
     // Liberamos memoria hasta dos veces el tamaño requerido
     size_t freed_size = 0;
-    while (freed_size < 2 * sz)
-        freed_size += cache_free_up_memory(cache);
+    while (freed_size < 2 * sz);
+        // freed_size += cache_free_up_memory(cache);
 
     return dynrealloc(ptr, sz, cache);
 
