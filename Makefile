@@ -19,6 +19,10 @@ SRC_HASHMAP = $(SRC_DIR)/hashmap/hashnode.c
 SRC_HELPERS = $(SRC_DIR)/helpers/results.c
 SRC_ATOM_COUNTER = $(SRC_DIR)/helpers/atom_counter.c
 SRC_APP = $(SRC_DIR)/app/main.c
+SRC_CACHE_SERVER = $(SRC_DIR)/server/cache_server.c
+SRC_CACHE_SERVER_UTILS = $(SRC_DIR)/server/cache_server_utils.c
+SRC_SERVER_STARTER = $(SRC_DIR)/server/server_starter.c
+SRC_SERVER_STARTER_UTILS = $(SRC_DIR)/server/server_starter_utils.c
 
 # Object files
 OBJ_CACHE = $(OBJ_DIR)/cache/cache.o
@@ -30,12 +34,16 @@ OBJ_HASHMAP = $(OBJ_DIR)/hashmap/hashnode.o
 OBJ_HELPERS = $(OBJ_DIR)/helpers/results.o
 OBJ_ATOM_COUNTER = $(OBJ_DIR)/helpers/atom_counter.o
 OBJ_APP = $(OBJ_DIR)/app/main.o
+OBJ_CACHE_SERVER = $(SRC_DIR)/server/cache_server.o
+OBJ_CACHE_SERVER_UTILS = $(SRC_DIR)/server/cache_server_utils.o
+OBJ_SERVER_STARTER = $(SRC_DIR)/server/server_starter.o
+OBJ_SERVER_STARTER_UTILS = $(SRC_DIR)/server/server_starter_utils.o
 
 # All object files
-OBJS = $(OBJ_CACHE) $(OBJ_CACHE_STATS) $(OBJ_DYNALLOC) $(OBJ_LRU) $(OBJ_LRUNODE) $(OBJ_HASHMAP) $(OBJ_HELPERS) $(OBJ_ATOM_COUNTER) $(OBJ_APP)
+OBJS = $(OBJ_CACHE) $(OBJ_CACHE_STATS) $(OBJ_DYNALLOC) $(OBJ_LRU) $(OBJ_LRUNODE) $(OBJ_HASHMAP) $(OBJ_HELPERS) $(OBJ_ATOM_COUNTER) $(OBJ_CACHE_SERVER) $(OBJ_CACHE_SERVER_UTILS) 
 
 # Output executable
-TARGET = $(BIN_DIR)/memcached
+TARGET = $(BIN_DIR)/cache_server
 
 # Default target
 all: $(TARGET)
@@ -85,10 +93,20 @@ $(OBJ_ATOM_COUNTER): $(SRC_ATOM_COUNTER) $(SRC_DIR)/helpers/atom_counter.h
 	@mkdir -p $(OBJ_DIR)/helpers
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# Compile main.c
-$(OBJ_APP): $(SRC_APP)
-	@mkdir -p $(OBJ_DIR)/app
+# Compile cache_server.c
+$(OBJ_CACHE_SERVER): $(SRC_CACHE_SERVER) $(SRC_CACHE_SERVER_UTILS)
+	@mkdir -p $(OBJ_DIR)/server
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Compile cache_server_utils.c
+$(OBJ_CACHE_SERVER_UTILS): $(SRC_CACHE_SERVER_UTILS)
+	@mkdir -p $(OBJ_DIR)/server
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# # Compile main.c
+# $(OBJ_APP): $(SRC_APP)
+# 	@mkdir -p $(OBJ_DIR)/app
+# 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Clean up build files
 clean:

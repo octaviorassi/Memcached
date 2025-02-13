@@ -13,7 +13,7 @@ typedef struct Cache* Cache;
  * @param sz El tamaño del bloque a asignar.
  * @param cache La cache asociada a quien invoca a esta funcion. 
  */
-void* dynalloc(size_t sz, Cache cache);
+void* dynalloc(size_t sz);
 
 
 /**

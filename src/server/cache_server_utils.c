@@ -68,7 +68,7 @@ void parse_request(Data* data) {
       if (data->parsing_index < LENGTH) return;
 
       data->key_size = htonl(*(int*)(data->key_size_buffer));
-      data->key = malloc(data->key_size); //!! DYNALLOC
+      data->key = dynalloc(data->key_size); //!! DYNALLOC
       data->parsing_stage = PARSING_KEY;
       data->parsing_index = 0;
       
@@ -90,7 +90,7 @@ void parse_request(Data* data) {
       if (data->parsing_index < LENGTH) return;
 
       data->value_size= htonl(*(int*)(data->value_size_buffer));
-      data->value = malloc(data->value_size);
+      data->value = dynalloc(data->value_size);
       data->parsing_stage = PARSING_VALUE;
       data->parsing_index = 0;
       break;
@@ -115,6 +115,9 @@ void parse_request(Data* data) {
   if (data->parsing_stage != PARSING_FINISHED) parse_request(data); //? Ver si esto funciona bien
 }
 
+
+extern Cache global_cache; //!! ELIMINAR
+
 void handle_request(Data* data) {
 
   operations++;
@@ -132,21 +135,35 @@ void handle_request(Data* data) {
       printf("[ValueSize] %d\n", data->value_size);
       for (int i = 0 ; i < data->value_size ; i++) printf("%c ", data->value[i]);
       printf("\n");
+
+
+      int result = cache_put(data->key, data->key_size, data->value, data->value_size, global_cache);
       
-      command = OK;
-      send_socket(data->socket, &command, 1);
-      
+      if (result == 0) {
+        command = OKAY;
+        send_socket(data->socket, &command, 1);
+      } 
+
+      else {
+        //TODO COMPLETAR
+      }
+
       break;
   
   case DEL:
+      
       printf("---------------------\n");
       printf("DEL Operation %d\n", operations);
       printf("[KeySize] %d\n", data->key_size);
       for (int i = 0 ; i < data->key_size ; i++) printf("%c ", data->key[i]);
       printf("\n");
-    
-      command = OK;
+
+
+      result = cache_delete(data->key, data->key_size, global_cache);
+      
+      command = result ? OKAY : ENOTFOUND;
       send_socket(data->socket, &command, 1);
+      
       break;
   
   case GET:
@@ -155,9 +172,31 @@ void handle_request(Data* data) {
       printf("[KeySize] %d\n", data->key_size);
       for (int i = 0 ; i < data->key_size ; i++) printf("%c ", data->key[i]);
       printf("\n");
-    
-      command = ENOTFOUND;
-      send_socket(data->socket, &command, 1);
+
+      LookupResult l_result = cache_get(data->key, data->key_size, global_cache);
+
+      if (lookup_result_is_ok(l_result)) {
+        
+        //todo: el cache_get, deberia devolver el size tambien
+        //todo: ver porque despues de un update, tira notfound
+
+        // Tengo que poner <<OK,LV,V>>
+        //!! Esto no esta bueno ver como hacer
+        char message[5 + data->value_size];
+        message[0] = OKAY;
+        memcpy(message + 1, data->value_size_buffer, LENGTH);
+        memcpy(message + 5, data->value, data->value_size);
+
+        send_socket(data->socket, message, 5 + data->value_size);
+      }
+
+      else {
+
+        command = ENOTFOUND;
+        send_socket(data->socket, &command, 1);
+      }
+
+      
       break;
   
   case STATS: // Implementar
@@ -170,8 +209,8 @@ void reset_client_data(Data* data) {
 
   data->parsing_index = 0;
   data->parsing_stage = PARSING_COMMAND;
-  memset(data->key_size_buffer, 0, LENGTH);
-  memset(data->value_size_buffer, 0, LENGTH);
+  // memset(data->key_size_buffer, 0, LENGTH);
+  // memset(data->value_size_buffer, 0, LENGTH);
 
 }
 

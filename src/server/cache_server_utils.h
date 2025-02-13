@@ -16,7 +16,8 @@
 #include <errno.h>
 #include <pthread.h>
 
-
+#include "../dynalloc/dynalloc.h"
+#include "../cache/cache.h"
 
 #define LENGTH 4
 
@@ -58,7 +59,7 @@ typedef enum {
   DEL       = 12,
   GET       = 13,
   STATS     = 21,
-  OK        = 101,
+  OKAY      = 101,
   EINVALID  = 111,
   ENOTFOUND = 112,
   EBINARY   = 113,
@@ -81,7 +82,7 @@ typedef struct {
   int server_epoll;
   int server_socket;
   int num_threads;
-  // Hash
+  Cache cache;
 
 } ServerArgs;
 

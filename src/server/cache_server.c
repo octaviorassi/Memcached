@@ -1,9 +1,13 @@
 
 #include "cache_server_utils.h"
 
+#include "../cache/cache.h"
+
 #define GREEN   "\x1b[32m"
 #define RESET   "\x1b[0m"
 #define RED     "\x1b[31m"
+
+Cache global_cache;
 
 void* working_thread(void* thread_args) {
 
@@ -113,7 +117,8 @@ int main(int argc, char** argv) { // Sabemos que los argumentos son correctos
   ServerArgs server_args;
   server_args.server_socket = atoi(argv[1]);
   server_args.num_threads = atoi(argv[2]);
-  // server_args.hash = hash;
+  global_cache = cache_create((HashFunction) kr_hash);
+  server_args.cache = global_cache;
 
   start_server(&server_args);
 

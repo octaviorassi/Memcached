@@ -7,7 +7,9 @@
 #define DYNALLOC_FAIL_RATE 10
 #define MAX_ATTEMPTS 2
 
-void* dynalloc(size_t sz, Cache cache) {
+extern Cache global_cache;
+
+void* dynalloc(size_t sz) {
     
 
     void* ptr = malloc(sz);
@@ -23,7 +25,7 @@ void* dynalloc(size_t sz, Cache cache) {
 
     while (num_nodes_eliminated_acum < num_nodes_to_eliminate) {
 
-        num_nodes_eliminated = cache_free_up_memory(cache, num_nodes_to_eliminate - num_nodes_eliminated_acum);
+        num_nodes_eliminated = cache_free_up_memory(global_cache, num_nodes_to_eliminate - num_nodes_eliminated_acum);
         
         if (num_nodes_eliminated < 0) return NULL;
 
@@ -31,7 +33,7 @@ void* dynalloc(size_t sz, Cache cache) {
     }
  
     // Ahora deberiamos poder asignar el bloque. Si no, intentamos de nuevo.
-    return dynalloc(sz, cache);
+    return dynalloc(sz);
 
 }
 

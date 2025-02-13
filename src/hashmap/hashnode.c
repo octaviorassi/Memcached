@@ -24,7 +24,7 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
     // No es posible insertar un par sin una key que lo identifique.
     if (key == NULL) return NULL;
 
-    HashNode node = dynalloc(sizeof(struct HashNode), cache);
+    HashNode node = dynalloc(sizeof(struct HashNode));
     if (node == NULL)
         return NULL;
 
