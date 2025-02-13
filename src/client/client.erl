@@ -24,7 +24,7 @@ start(ServerList) ->
   
 
 startDefault() ->
-  start([{"127.0.0.1", 889}]).
+  start([{"127.0.0.1", 8000}, {"127.0.0.1", 9000}]).
 
 
 put(Key, Value) ->
@@ -152,4 +152,3 @@ get_server(Key, ServerMap) ->
     Index = (MapIndex rem (ServerMap#serverMap.size)) + 1,
 
     lists:nth(Index, ServerMap#serverMap.servers).
-

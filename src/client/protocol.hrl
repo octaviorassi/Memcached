@@ -11,6 +11,3 @@
 -define(EBINARY, 113).
 -define(EBIG, 114).
 -define(EUNK, 115).
-
-
-
