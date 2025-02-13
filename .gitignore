@@ -50,5 +50,12 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
 /memcached
+
+# Erlang 
+*.beam
+
+# Vscode configurations
+*.json
 .vscode/
