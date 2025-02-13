@@ -89,12 +89,10 @@ void parse_request(Data* data) {
 
       if (data->parsing_index < LENGTH) return;
 
-      data->value_size= htonl(*(int*)(data->value_size_buffer));
+      data->value_size = htonl(*(int*)(data->value_size_buffer));
       data->value = dynalloc(data->value_size);
       data->parsing_stage = PARSING_VALUE;
       data->parsing_index = 0;
-      break;
-
       break;
 
     case PARSING_VALUE:
@@ -160,8 +158,10 @@ void handle_request(Data* data) {
 
 
       result = cache_delete(data->key, data->key_size, global_cache);
-      
-      command = result ? OKAY : ENOTFOUND;
+
+      if (result == 0) command = OKAY;
+      else command = ENOTFOUND;
+
       send_socket(data->socket, &command, 1);
       
       break;
@@ -177,25 +177,30 @@ void handle_request(Data* data) {
 
       if (lookup_result_is_ok(l_result)) {
         
-        //todo: el cache_get, deberia devolver el size tambien
         //todo: ver porque despues de un update, tira notfound
+        printf("SIZEEE: %ld\n", l_result.size);
+        char command = OKAY;
+        char length_buffer[LENGTH];
+        size_t size = ntohl(l_result.size);
+        memcpy(length_buffer, &size, LENGTH);
 
-        // Tengo que poner <<OK,LV,V>>
-        //!! Esto no esta bueno ver como hacer
-        char message[5 + data->value_size];
-        message[0] = OKAY;
-        memcpy(message + 1, data->value_size_buffer, LENGTH);
-        memcpy(message + 5, data->value, data->value_size);
-
-        send_socket(data->socket, message, 5 + data->value_size);
+        send_socket(data->socket, &command, 1);
+        send_socket(data->socket, length_buffer, LENGTH);
+        send_socket(data->socket, l_result.ptr, l_result.size);
       }
 
-      else {
+      else if (lookup_result_is_error(l_result)){
 
+        printf("ERROR LOOKUP\n");
         command = ENOTFOUND;
         send_socket(data->socket, &command, 1);
       }
 
+      else {
+        printf("MISS LOOKUP\n");
+        command = ENOTFOUND;
+        send_socket(data->socket, &command, 1);
+      }
       
       break;
   

@@ -119,6 +119,7 @@ client(ServerMap) ->
       case  Response of 
         <<?OK>>   -> 
           <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
+          ?PRINT(ValueLength),
           BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
           Value = binary_to_term(BinaryValue),
           PID ! {ok, Value};

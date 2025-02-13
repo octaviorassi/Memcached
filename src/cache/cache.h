@@ -8,10 +8,10 @@
 #define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
 
 // Hash default
-unsigned long kr_hash(char* key);
+unsigned long kr_hash(char* key, size_t size);
 
 typedef struct Cache* Cache;
-typedef unsigned long (*HashFunction)(void* );
+typedef unsigned long (*HashFunction)(void* , size_t);
 
 /**
  *  @brief Inicializa una Cache con funcion de hash \a hash.

@@ -11,15 +11,15 @@ typedef enum {
 
 typedef struct LookupResult {
     void*   ptr;
-    // size_t size: ? es necesario?
-
+    size_t size;
+    
     Status  status;
 } LookupResult;
 
 // !? Deberia exportar el enum para que el usuario pueda chequearlo o hago un check_status que tome un lookup result
 
 /// @brief Devuelve un LookupResult con el valor objetivo y status OK.
-LookupResult create_ok_lookup_result(void* ptr);
+LookupResult create_ok_lookup_result(void* ptr, size_t size);
 
 /// @brief Devuelve un LookupResult con valor 0 y status ERROR.
 LookupResult create_error_lookup_result();

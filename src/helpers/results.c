@@ -1,20 +1,20 @@
 #include <stdlib.h>
 #include "results.h"
 
-static inline LookupResult create_lookup_result(void* ptr, Status status) {
-    return (LookupResult){ptr, status};
+static inline LookupResult create_lookup_result(void* ptr, size_t size, Status status) {
+    return (LookupResult){ptr, size, status};
 }
 
-inline LookupResult create_ok_lookup_result(void* ptr) {
-    return create_lookup_result(ptr, OK);
+inline LookupResult create_ok_lookup_result(void* ptr,size_t size) {
+    return create_lookup_result(ptr, size, OK);
 }
 
 inline LookupResult create_error_lookup_result() {
-    return create_lookup_result(0, ERROR);
+    return create_lookup_result(0, 0, ERROR);
 }
 
 inline LookupResult create_miss_lookup_result() {
-    return create_lookup_result(0, MISS);
+    return create_lookup_result(0, 0, MISS);
 }
 
 inline int lookup_result_is_error(LookupResult lr) {

@@ -28,12 +28,10 @@ struct Cache {
 };
 
 // Funcion de hash de K&R.
-unsigned long kr_hash(char* key) {
+unsigned long kr_hash(char* key, size_t size) {
 	
   unsigned long hashval;
   unsigned long i;
-
-  size_t size = strlen(key);
 
   for (i = 0, hashval = 0 ; i < size ; ++i, key++)
     hashval = *key + 31 * hashval;
@@ -44,7 +42,7 @@ unsigned long kr_hash(char* key) {
 
 static int hashmap_init(HashFunction hash, Cache cache);
 static int hashmap_destroy(Cache cache);
-static unsigned int cache_get_bucket_number(void* key, Cache cache);
+static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
 static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
 
 
@@ -89,7 +87,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
 
   // Calculamos el bucket
   // ! Observacion. Aca no hay race conditions porque key no pertenece a la cache, es el puntero al buffer donde acabamos de leer la clave.
-  int bucket_number = cache_get_bucket_number(key, cache);
+  int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
   if (bucket_number < 0)
     return create_error_lookup_result();
@@ -103,6 +101,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
 
   HashNode bucket = cache->buckets[bucket_number];
 
+  PRINT("%ld", key_size);
   // Buscamos el nodo asociado a la key en el bucket
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
@@ -115,6 +114,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
   // Si lo encontramos, actualizamos la prioridad, devolvemos el lock,
   // y retornamos el valor.
   void* val = hashnode_get_val(node);
+  size_t size = hashnode_get_val_size(node);
 
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
   // PRINT("Inserte en la LRUQueue. Contador de items de la cola: %i", lru_queue_get_count(cache->queue));
@@ -123,7 +123,8 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
 
   cache_stats_get_counter_inc(cache->stats);
 
-  return create_ok_lookup_result(val);
+  printf("size lookup %ld \n", size);
+  return create_ok_lookup_result(val, size);
 
 }
 
@@ -135,7 +136,7 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   // Calculamos el bucket number, lockeamos su zona y obtenemos el bucket.
   // ! IMPORTANTE. Actualmente aca hay race conditions, porque para hashear necesito acceder al valor que apunta la key pero no es posible que tenga el lock al momento de hashear (pues aun no se que lock le corresponde). Esto no es un problema cuando consideramos que en la memcached real la memoria a la que apunta esta key no es posible que ya este en la cache pues la asignamos por fuera antes de insertarla.
-  int bucket_number = cache_get_bucket_number(key, cache);
+  int bucket_number = cache_get_bucket_number(key, key_size, cache);
   if (bucket_number < 0)
     return -1;
 
@@ -156,11 +157,13 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   // La clave ya pertenecia a la cache, actualizamos valor y prioridad.
   if (node != NULL) {
+    PRINT("%ld", val_size);
     hashnode_set_val(node, val, val_size, cache);
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     pthread_mutex_unlock(lock);
     return 0;
   }
+    PRINT("%ld", val_size);
 
   // La clave no estaba en la cache, la insertamos.
   node = hashnode_create(key, key_size, val, val_size, cache);
@@ -199,7 +202,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
     return -1;
   
   // ! Aca tambien hay race conditions al acceder a key. Nuevamente, no es un problema cuando podemos asumir que key no es un puntero que forme parte de la cache.
-  unsigned int bucket_number = cache_get_bucket_number(key, cache);
+  unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
@@ -425,14 +428,15 @@ static int hashmap_destroy(Cache cache) {
  *  @brief Calcula el numero de bucket asociado a `key` en la cache objetivo.
  * 
  *  @param key La clave de la cual queremos saber su numero de bucket.
+ *  @param size La longitud de la clave.
  *  @param cache La cache objetivo.
  *  @return El numero de bucket asociado a la key en la cache.
  */
-static unsigned int cache_get_bucket_number(void* key, Cache cache) {
+static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache) {
   if (cache == NULL)
       return -1;
 
-  return cache->hash_function(key) % cache->n_buckets;
+  return cache->hash_function(key, size) % cache->n_buckets;
 
 }
 

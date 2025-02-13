@@ -10,7 +10,7 @@ recv_bytes_aux(_, 0, Buffer) -> Buffer; % Ya dejamos de leer
 recv_bytes_aux(Socket, N, Buffer) -> 
   case gen_tcp:recv(Socket, N) of
     {ok, Message} -> 
-      recv_bytes_aux(Socket, N - byte_size(Message), <<Message/binary, Buffer/binary>>)
+      recv_bytes_aux(Socket, N - byte_size(Message), <<Buffer/binary, Message/binary>>)
   end. 
   
 

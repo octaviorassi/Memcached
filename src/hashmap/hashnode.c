@@ -43,7 +43,7 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
 
     // Asignamos memoria y setteamos el valor
     node->val = val;
-    node->val_size;
+    node->val_size = val_size;
 
     // Setteamos la prioridad
     node->prio  = prio;
@@ -72,7 +72,7 @@ LookupResult hashnode_lookup(void* key, size_t size, HashNode node) {
 
     while (node) {
         if (hashnode_keys_equal(key, size, node->key, node->key_size))
-            return create_ok_lookup_result(node->val);
+            return create_ok_lookup_result(node->val, node->val_size);
 
         node = node->next;
     }
@@ -120,10 +120,6 @@ int hashnode_keys_equal(const void* key_a, size_t size_a, const void* key_b, siz
     return size_a == size_b && (memcmp(key_a, key_b, size_a) == 0);
 
 }
-
-
-
-
 
 
 void* hashnode_get_key(HashNode node) {
