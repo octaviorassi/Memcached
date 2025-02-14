@@ -1,12 +1,13 @@
 #include <sys/epoll.h>
 #include <stdio.h>
 #include "cache_server_utils.h"
-#include "../cache/cache_stats.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
+#include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
+
+// ? Problema: yo quiero que solo vea las funciones que expone la cache, no quiero que cache_utils pueda ver las funciones que expone cache_stats a cache. 
 
 int operations = 0;
 
 void quit(char* error) {
-
   // ! perror(msg) deberia contener en msg una explicacion del valor de error setteado en errno. aca faltaria haber setteado el errno?
   perror(error);
   abort();
@@ -72,6 +73,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_KEY_LEN:
+
       recv_socket(data->socket, data->key_size_buffer + data->parsing_index, LENGTH - data->parsing_index, data);
 
       if (data->parsing_index < LENGTH) return;
@@ -85,6 +87,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_KEY:
+
       recv_socket(data->socket, data->key + data->parsing_index, data->key_size - data->parsing_index, data);
 
       if (data->parsing_index < data->key_size) return;
@@ -94,6 +97,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_VALUE_LEN:
+
       recv_socket(data->socket, data->value_size_buffer + data->parsing_index, LENGTH - data->parsing_index, data);
 
       if (data->parsing_index < LENGTH) return;
@@ -124,6 +128,22 @@ void parse_request(Data* data) {
 
 
 extern Cache global_cache; //!! ELIMINAR
+
+
+static void serialize_stats_report(const StatsReport* report, char* buffer) {
+  
+  // Casteamos al buffer de chars a buffer de Counter para insertar mas facil.
+  Counter* buffer_ptr = (Counter*) buffer;
+
+  // Ahora insertamos en el buffer en el orden preestablecido, convirtiendo al network order.
+  buffer_ptr[0] = ntohl(report->put);
+  buffer_ptr[1] = ntohl(report->get);
+  buffer_ptr[2] = ntohl(report->del);
+  buffer_ptr[3] = ntohl(report->key);
+  buffer_ptr[4] = ntohl(report->evict);
+
+}
+
 
 void handle_request(Data* data) {
 
@@ -176,6 +196,7 @@ void handle_request(Data* data) {
       break;
   
   case GET:
+  
       printf("---------------------\n");
       printf("GET Operation %d\n", operations);
       printf("[KeySize] %d\n", data->key_size);
@@ -215,7 +236,7 @@ void handle_request(Data* data) {
   case STATS: 
     
     // Obtengo el reporte de estadisticas.
-    StatsReport report = cache_stats_report(global_cache);
+    StatsReport report = cache_report(global_cache);
 
     // Creo un buffer donde cargar cada counter
     size_t buffer_size = sizeof(Counter) * STATS_COUNT;
@@ -231,19 +252,7 @@ void handle_request(Data* data) {
 }
 
 
-static void serialize_stats_report(const StatsReport* report, char* buffer) {
-  
-  // Casteamos al buffer de chars a buffer de Counter para insertar mas facil.
-  Counter* buffer_ptr = (Counter*) buffer;
 
-  // Ahora insertamos en el buffer en el orden preestablecido, convirtiendo al network order.
-  buffer_ptr[0] = ntohl(report->put);
-  buffer_ptr[1] = ntohl(report->get);
-  buffer_ptr[2] = ntohl(report->del);
-  buffer_ptr[3] = ntohl(report->key);
-  buffer_ptr[4] = ntohl(report->evict);
-
-}
 
 void reset_client_data(Data* data) {
 
@@ -253,6 +262,7 @@ void reset_client_data(Data* data) {
   // memset(data->value_size_buffer, 0, LENGTH);
 
 }
+
 
 int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, Data* data) {
   
