@@ -63,11 +63,12 @@ int cache_delete(void* key, size_t key_size,  Cache cache);
 
 
 /**
- *  @brief todo
+ *  @brief Genera un reporte de estadisticas de uso de la cache objetivo.
  * 
  *  @param cache La cache objetivo.
+ *  @return Un reporte con los contadores para cada operacion realizada por la cache.
  */
-void cache_stats(Cache cache);
+StatsReport cache_report(Cache cache);
 
 /**
  *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
@@ -86,28 +87,5 @@ int cache_free_up_memory(Cache cache, int);
  */
 void cache_destroy(Cache cache);
 
-
-
-/**
- *  @brief Adquiere el lock de todos los mutex zonales de la cache. 
- * 
- *  @param cache La cache objetivo.
- *  @return 0 si es exitoso, distinto de 0 si no.
- */
-int cache_lock_all_zones(Cache cache);
-
-
-/**
- *  @brief Libera los locks de todos los mutex zonales de la cache. 
- * 
- *  @param cache La cache objetivo.
- *  @return 0 si es exitoso, distinto de 0 si no.
- */
-int cache_unlock_all_zones(Cache cache);
-
-/* auxiliares */
-
-int cache_lock_zone_mutex(int bucket_number, Cache cache);
-int cache_unlock_zone_mutex(int bucket_number, Cache cache);
 
 #endif // __CACHE_H__

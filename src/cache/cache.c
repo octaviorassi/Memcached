@@ -39,12 +39,13 @@ unsigned long kr_hash(char* key, size_t size) {
   return hashval;
 }
 
-
+// Utils
 static int hashmap_init(HashFunction hash, Cache cache);
 static int hashmap_destroy(Cache cache);
 static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
 static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
 
+/* Interfaz de la Cache */
 
 Cache cache_create(HashFunction hash) { 
 
@@ -86,22 +87,17 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
     return create_error_lookup_result();
 
   // Calculamos el bucket
-  // ! Observacion. Aca no hay race conditions porque key no pertenece a la cache, es el puntero al buffer donde acabamos de leer la clave.
-  int bucket_number = cache_get_bucket_number(key, key_size, cache);
-
-  if (bucket_number < 0)
-    return create_error_lookup_result();
+  unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
   // Obtenemos el lock asociado junto con su bucket
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
     return create_error_lookup_result();
-
+  
   pthread_mutex_lock(lock);
 
   HashNode bucket = cache->buckets[bucket_number];
 
-  PRINT("%ld", key_size);
   // Buscamos el nodo asociado a la key en el bucket
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
@@ -113,17 +109,16 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
 
   // Si lo encontramos, actualizamos la prioridad, devolvemos el lock,
   // y retornamos el valor.
-  void* val = hashnode_get_val(node);
+  void*  val  = hashnode_get_val(node);
   size_t size = hashnode_get_val_size(node);
 
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
-  // PRINT("Inserte en la LRUQueue. Contador de items de la cola: %i", lru_queue_get_count(cache->queue));
 
+  // Devolvemos el lock
   pthread_mutex_unlock(lock);
 
   cache_stats_get_counter_inc(cache->stats);
 
-  printf("size lookup %ld \n", size);
   return create_ok_lookup_result(val, size);
 
 }
@@ -135,15 +130,11 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
     return -1;
 
   // Calculamos el bucket number, lockeamos su zona y obtenemos el bucket.
-  // ! IMPORTANTE. Actualmente aca hay race conditions, porque para hashear necesito acceder al valor que apunta la key pero no es posible que tenga el lock al momento de hashear (pues aun no se que lock le corresponde). Esto no es un problema cuando consideramos que en la memcached real la memoria a la que apunta esta key no es posible que ya este en la cache pues la asignamos por fuera antes de insertarla.
-  int bucket_number = cache_get_bucket_number(key, key_size, cache);
-  if (bucket_number < 0)
-    return -1;
+  unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
     return -1;
-  
 
   pthread_mutex_lock(lock);
 
@@ -155,19 +146,16 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   // Lo encuentre o no, la operacion de PUT se llevo a cabo.
   cache_stats_put_counter_inc(cache->stats);
 
-  // La clave ya pertenecia a la cache, actualizamos valor y prioridad.
+  // Si la clave ya pertenecia a la cache, solo actualizamos valor y prioridad.
   if (node != NULL) {
-    PRINT("%ld", val_size);
     hashnode_set_val(node, val, val_size, cache);
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     pthread_mutex_unlock(lock);
     return 0;
   }
-    PRINT("%ld", val_size);
 
   // La clave no estaba en la cache, la insertamos.
   node = hashnode_create(key, key_size, val, val_size, cache);
-
   if (node == NULL) {
     pthread_mutex_unlock(lock);
     return -1;
@@ -178,19 +166,21 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
       II.  El next del node   pasa a ser bucket
       III. El bucket pasa a ser node
   */
-
+ 
   hashnode_set_prev(bucket, node);
   hashnode_set_next(node, bucket);
   cache->buckets[bucket_number] = node;
 
+  // Setteamos los valores de su LRUNode asociado y lo insertamos a la LRUQueue
   lrunode_set_bucket_number(hashnode_get_prio(node), bucket_number);
   lrunode_set_hash_node(hashnode_get_prio(node), node);
-  lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
 
+  lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
 
   pthread_mutex_unlock(lock);
 
   cache_stats_key_counter_inc(cache->stats);
+
   return 0;
 
 }
@@ -201,7 +191,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   if (cache == NULL)
     return -1;
   
-  // ! Aca tambien hay race conditions al acceder a key. Nuevamente, no es un problema cuando podemos asumir que key no es un puntero que forme parte de la cache.
+  // Tomamos el lock asociado al nodo a eliminar
   unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
   pthread_mutex_t* lock = cache_get_zone_mutex(bucket_number, cache);
@@ -210,31 +200,27 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 
   pthread_mutex_lock(lock);
 
+  // Obtenemos su bucket y lo buscamos dentro de el.
   HashNode bucket = cache->buckets[bucket_number];
-
-  // Buscamos si la clave ya pertenecia al bucket.
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
-  // La clave no pertenecia a la cache, devolvemos el lock y retornamos.
+  // Si la clave no pertenecia a la cache, devolvemos el lock y retornamos.
   if (node == NULL) {
     pthread_mutex_unlock(lock);
-    return 1; // > 0 es un miss, < 0 es un error
+    return 1; 
   }
 
-  // ? Este orden es correcto? 
-  // ! No esta bueno que la cache tenga que lockear la LRU para limpiar el nodo, pero tampoco podemos hacer que lru_queue_node_clean sea thread-safe.
-
-  // La clave estaba en la cache: borramos de la cola LRU.
+  // Si la clave estaba en la cache borramos de la cola LRU
   lru_queue_delete_node(hashnode_get_prio(node), cache->queue);
 
-  // Lo desconectamos del hashmap y liberamos su memoria
+  // Lo desconectamos del hashmap
   hashnode_clean(node); 
 
   // Si era el unico nodo del bucket, node->next pasa a ser el bucket
   if (bucket == node)
     cache->buckets[bucket_number] = hashnode_get_next(node);
 
-  // ! El destroy podria ser posterior a liberar el mutex realmente.
+  // Y liberamos su memoria
   hashnode_destroy(node);
   
   pthread_mutex_unlock(lock);
@@ -247,9 +233,9 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 }
 
 
-// todo: aca llenaria algun buffer con cache_stats_show() o algo asi
-void cache_stats(Cache cache) {
-  if (cache) cache_stats_show(cache->stats, NULL);
+StatsReport cache_report(Cache cache) {
+  if (cache)
+    return cache_stats_report(cache->stats);
 }
 
 
@@ -336,11 +322,9 @@ void cache_destroy(Cache cache) {
 
 
 
-/* ************************* 
-   *       AUXILIARES      * 
-   ************************* 
-      (no las exportamos)    
-*/
+
+
+/* Funciones de utilidad no exportadas */
 
 /**
  *  @brief Inicializa los campos asociados al HashMap de la cache, setteando a `hash` como funcion de hash.
@@ -376,6 +360,7 @@ static int hashmap_init(HashFunction hash, Cache cache) {
   return 0;
 
 }
+
 
 /**
  *  @brief Destruye los campos asociados al HashMap de la cache objetivo.
@@ -424,6 +409,7 @@ static int hashmap_destroy(Cache cache) {
 
 }
 
+
 /**
  *  @brief Calcula el numero de bucket asociado a `key` en la cache objetivo.
  * 
@@ -433,12 +419,10 @@ static int hashmap_destroy(Cache cache) {
  *  @return El numero de bucket asociado a la key en la cache.
  */
 static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache) {
-  if (cache == NULL)
-      return -1;
-
   return cache->hash_function(key, size) % cache->n_buckets;
 
 }
+
 
 /**
  *  @brief Obtiene un puntero al mutex asociado al numero de bucket ingresado en la cache objetivo.
@@ -454,3 +438,4 @@ static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache c
   return cache->zone_locks[bucket_number % N_LOCKS];
 
 }
+
