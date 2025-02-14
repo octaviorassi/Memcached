@@ -15,8 +15,6 @@ struct CacheStats {
 };
 
 
-
-
 CacheStats cache_stats_create() {
     
     CacheStats stats = malloc(sizeof(struct CacheStats));
@@ -94,24 +92,28 @@ StatsReport cache_stats_report(CacheStats cstats) {
 
 }
 
+
 void cache_stats_show(CacheStats cstats, char* buf) { 
    
-    printf("******************* CACHE STATS *******************\n");
-    printf("PUTS: %u\n", atom_counter_get(cstats->put_counter));
-    printf("GETS: %u\n", atom_counter_get(cstats->get_counter));
-    printf("DELS: %u\n", atom_counter_get(cstats->del_counter));
-
-    printf("KEYS: %u\n", atom_counter_get(cstats->key_counter));
-    printf("***************************************************\n");
+    printf("****************** CACHE STATS *******************\n");
+    printf("PUTS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->put_counter));
+    printf("GETS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->get_counter));
+    printf("DELS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->del_counter));
+    printf("KEYS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->key_counter));
+    
+    printf("EVICTS: " COUNTER_FORMAT "\n",
+            atom_counter_get(cstats->evict_counter));
+    printf("**************************************************\n");
 
     return;
     
 }
 
+
 int cache_stats_destroy(CacheStats cstats) {
 
     if (cstats == NULL)
-        return 0;
+        return 1;
     
     atom_counter_destroy(cstats->put_counter);
     atom_counter_destroy(cstats->get_counter);

@@ -1,5 +1,5 @@
-#ifndef __CACHE_STATS__
-#define __CACHE_STATS__
+#ifndef __CACHE_STATS_H__
+#define __CACHE_STATS_H__
 
 #include "../helpers/atom_counter.h"
 
@@ -111,8 +111,15 @@ StatsReport cache_stats_report(CacheStats cstats);
 
 void cache_stats_show(CacheStats cstats, char* buf);
 
+
+/**
+ *  @brief Destruye la estructura CacheStats apuntada por `cstats`, liberando la memoria que se le habia asignado.
+ * 
+ *  @param cstats Puntero a la estructura CacheStats a destruir.
+ *  @return 0 en caso de liberar exitosamente, 1 si el puntero era NULL.
+ */
 int cache_stats_destroy(CacheStats cstats);
 
 
 
-#endif // __CACHE_STATS__
+#endif // __CACHE_STATS_H__
