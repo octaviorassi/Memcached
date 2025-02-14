@@ -3,6 +3,8 @@
 
 typedef struct AtomCounter* AtomCounter;
 
+typedef unsigned int Counter;
+
 AtomCounter atom_counter_create(unsigned int initial_value);
 
 unsigned int atom_counter_get(AtomCounter counter);

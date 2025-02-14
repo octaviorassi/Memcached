@@ -14,6 +14,14 @@ struct CacheStats {
 
 };
 
+struct StatsReport {
+    Counter put;
+    Counter get;
+    Counter del;
+    Counter key;
+    Counter evict;
+};
+
 
 CacheStats cache_stats_create() {
     
@@ -79,10 +87,22 @@ int cache_stats_evictcounter_dec(CacheStats cstats) {
 }
 
 
+StatsReport cache_stats_report(CacheStats cstats) {
+
+    StatsReport report;
+    
+    report.put   = atom_counter_get(cstats->put_counter);
+    report.get   = atom_counter_get(cstats->get_counter);
+    report.del   = atom_counter_get(cstats->del_counter);
+    report.key   = atom_counter_get(cstats->key_counter);
+    report.evict = atom_counter_get(cstats->evict_counter);
+
+    return report;
+
+}
+
 void cache_stats_show2(CacheStats cstats, char* buf) { 
    
-    // Por ahora imprime en pantalla unicamente.
-
     printf("******************* CACHE STATS *******************\n");
     printf("PUTS: %u\n", atom_counter_get(cstats->put_counter));
     printf("GETS: %u\n", atom_counter_get(cstats->get_counter));
@@ -94,6 +114,7 @@ void cache_stats_show2(CacheStats cstats, char* buf) {
     return;
     
 }
+
 void cache_stats_show(CacheStats cstats, char* buf) {
     // Calculate the maximum line length for the box
     char temp[256];
