@@ -21,7 +21,7 @@
 
 #define LENGTH 4
 
-
+// ? Estos structs y demas no deberian ir en .c?
 typedef enum {
 
   PARSING_COMMAND,
@@ -88,22 +88,78 @@ typedef struct {
 
 Data* create_new_client_data(int socket);
 
-void quit(char* );
+/**
+ *  @brief Imprime el mensaje `error` explicando el valor de `errno` y aborta la ejecucion generando un core dump al invocar a `abort()`.
+ * 
+ *  @param error Mensaje de error explicando el valor de error de errno.
+ */
+void quit(char* error);
 
-void recv_socket(int socket, char* message_buffer, int size, Data* data);
+/**
+ *  @brief Lee hasta `size` bytes del `socket` en `message_buffer`.
+ * 
+ *  @param socket File descriptor del socket donde recibiremos bytes.
+ *  @param message_buffer Buffer de lectura.
+ *  @param size Cantidad maxima de bytes a leer.
+ *  @param data Estructura de datos del cliente. // ! actualizar esto cuando cambie nombre
+ *  
+ *  @return La cantidad de bytes efectivamente leidos, o -1 si se produjo un error.
+ */
+ssize_t recv_socket(int socket, char* message_buffer, int size, Data* data);
 
-int send_socket(int socket, char* message, int size);
 
+/**
+ *  @brief Escribe `size` bytes del mensaje `message` al `socket` objetivo.
+ * 
+ *  @param socket File descriptor del socket a escribir.
+ *  @param message Buffer con el contenido del mensaje.
+ *  @param size Cantidad de bytes a escribir.
+ * 
+ *  @return La cantidad de bytes enviados, que es -1 si se produjo un error.
+ */
+ssize_t send_socket(int socket, char* message, int size);
+
+/**
+ *  @brief Parsea el mensaje proveniente del cliente asociado al `data` de acuerdo a su parsing stage. Este parseo siempre es total; en caso de recibirse un mensaje incompleto, la informacion del cliente se actualiza y se vuelve a invocar la funcion recursivamente hasta que se complete el mensaje o se produza un error.
+ * 
+ *  @param[out] data Puntero a la estructura con la informacion del cliente que es actualizada de acuerdo a la informacion parseada.
+ */
 void parse_request(Data* data);
 
+
+/**
+ *  @brief Ejecuta el comando cargado en la estructura con informacion del cliente apuntada por `data` en su campo `command`.
+ * 
+ *  @param data Puntero a la estructura con informacion del cliente.
+ */
 void handle_request(Data* data);
 
-void handle_request(Data* data);
 
+/**
+ *  @brief Restablece la estructura de informacion del cliente apuntada por `data`, inicializando a 0 los valores asociados al stage de parseo.
+ * 
+ *  @param[out] data Puntero a la estructura de informacion del cliente a restablecer.
+ */
 void reset_client_data(Data* data);
 
-void reconstruct_client_epoll(int fd, struct epoll_event* ev, Data* data);
+/**
+ *  @brief Reconstruye el epoll_event asociado al cliente cuya informacion se almacena en la estructura apuntada por `data`, y carga el evento en la instancia de epoll asociada a `epoll_fd` para su control. 
+ * 
+ *  @param epoll_fd File descriptor de la instancia de epoll objetivo.
+ *  @param[out] epoll_event Puntero a la estructura del epoll_event a reconstruir.
+ *  @param data Puntero a la estructura de informacion del cliente a controlar.
+ * 
+ *  @return 0 si la manipulacion de la instancia de epoll es exitosa, -1 si no.
+ */
+int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, Data* data);
 
+/**
+ *  @brief Crea e inicializa una nueva estructura de informacion del cliente con el socket de cliente establecido a `client_socket`.
+ *  
+ *  @param client_socket File descriptor del socket del cliente.
+ * 
+ *  @return Un puntero a la estructura creada e inicializada.
+ */
 Data* create_new_client_data(int client_socket);
 
 
