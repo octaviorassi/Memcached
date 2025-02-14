@@ -1,49 +1,59 @@
-#include "cache_server_utils.h"
 #include <sys/epoll.h>
 #include <stdio.h>
+#include "cache_server_utils.h"
+#include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
+
+// ? Problema: yo quiero que solo vea las funciones que expone la cache, no quiero que cache_utils pueda ver las funciones que expone cache_stats a cache. 
 
 int operations = 0;
 
 void quit(char* error) {
+  // ! perror(msg) deberia contener en msg una explicacion del valor de error setteado en errno. aca faltaria haber setteado el errno?
   perror(error);
   abort();
 }
 
-// Puede ser que no lea todo
-void recv_socket(int socket, char* message_buffer, int size, Data* data) {
 
-  int num_bytes_recv = 0;
-  int bytes_recv;
+ssize_t recv_socket(int socket, char* message_buffer, int size, Data* data) {
 
-  // Leo siempre y cuando haya algo para leer, y no supere el largo
-  while (bytes_recv > 0 && num_bytes_recv < size) {
+  ssize_t total_bytes_received = 0;
+  ssize_t bytes_received;
 
-    bytes_recv = recv(socket, message_buffer + num_bytes_recv, size - num_bytes_recv, 0);
-    num_bytes_recv += bytes_recv;
+  while (bytes_received > 0 && total_bytes_received < size) {
+
+    bytes_received = recv(socket, message_buffer + total_bytes_received,
+                          size - bytes_received, 0);
+
+    total_bytes_received+= bytes_received;
   }
 
-  data->parsing_index += num_bytes_recv;
-}
+  data->parsing_index += total_bytes_received;
 
-// Obligatoriamente va a tener que mandar todo
-int send_socket(int socket, char* message, int size) {
-
-  int num_bytes_send = 0; 
-  int bytes_send;
-
-  while (num_bytes_send < size) {
-
-    bytes_send = send(socket, message + num_bytes_send, size - num_bytes_send, 0);
-    if(bytes_send == -1) quit("[Error] send");
-    num_bytes_send += bytes_send;
-
-  }
-
-  return num_bytes_send;
+  return total_bytes_received;
 }
 
 
+ssize_t send_socket(int socket, char* message, int size) {
 
+  ssize_t total_bytes_sent = 0; 
+  ssize_t bytes_sent;
+
+  while (total_bytes_sent < size) {
+
+    bytes_sent = send(socket, message + total_bytes_sent,
+                      size - total_bytes_sent, 0);
+
+    // ! Deberia retornar -1 aca tambien no? Y settear errno si voy a invocar a quit()
+    if (bytes_sent == -1)
+      quit("[Error] send");
+
+    total_bytes_sent += bytes_sent;
+
+  }
+
+  return total_bytes_sent;
+
+}
 
 
 void parse_request(Data* data) {
@@ -63,6 +73,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_KEY_LEN:
+
       recv_socket(data->socket, data->key_size_buffer + data->parsing_index, LENGTH - data->parsing_index, data);
 
       if (data->parsing_index < LENGTH) return;
@@ -76,6 +87,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_KEY:
+
       recv_socket(data->socket, data->key + data->parsing_index, data->key_size - data->parsing_index, data);
 
       if (data->parsing_index < data->key_size) return;
@@ -85,6 +97,7 @@ void parse_request(Data* data) {
       break;
 
     case PARSING_VALUE_LEN:
+
       recv_socket(data->socket, data->value_size_buffer + data->parsing_index, LENGTH - data->parsing_index, data);
 
       if (data->parsing_index < LENGTH) return;
@@ -115,6 +128,22 @@ void parse_request(Data* data) {
 
 
 extern Cache global_cache; //!! ELIMINAR
+
+
+static void serialize_stats_report(const StatsReport* report, char* buffer) {
+  
+  // Casteamos al buffer de chars a buffer de Counter para insertar mas facil.
+  Counter* buffer_ptr = (Counter*) buffer;
+
+  // Ahora insertamos en el buffer en el orden preestablecido, convirtiendo al network order.
+  buffer_ptr[0] = ntohl(report->put);
+  buffer_ptr[1] = ntohl(report->get);
+  buffer_ptr[2] = ntohl(report->del);
+  buffer_ptr[3] = ntohl(report->key);
+  buffer_ptr[4] = ntohl(report->evict);
+
+}
+
 
 void handle_request(Data* data) {
 
@@ -167,6 +196,7 @@ void handle_request(Data* data) {
       break;
   
   case GET:
+  
       printf("---------------------\n");
       printf("GET Operation %d\n", operations);
       printf("[KeySize] %d\n", data->key_size);
@@ -177,7 +207,6 @@ void handle_request(Data* data) {
 
       if (lookup_result_is_ok(l_result)) {
         
-        //todo: ver porque despues de un update, tira notfound
         printf("SIZEEE: %ld\n", l_result.size);
         char command = OKAY;
         char length_buffer[LENGTH];
@@ -204,11 +233,26 @@ void handle_request(Data* data) {
       
       break;
   
-  case STATS: // Implementar
+  case STATS: 
+    
+    // Obtengo el reporte de estadisticas.
+    StatsReport report = cache_report(global_cache);
+
+    // Creo un buffer donde cargar cada counter
+    size_t buffer_size = sizeof(Counter) * STATS_COUNT;
+    char report_buffer[buffer_size];
+
+    // Serializamos el reporte de estadisticas en el buffer y lo enviamos
+    serialize_stats_report(&report, report_buffer);
+    send_socket(data->socket, report_buffer, buffer_size);
+
     break;
   
   }  
 }
+
+
+
 
 void reset_client_data(Data* data) {
 
@@ -219,13 +263,17 @@ void reset_client_data(Data* data) {
 
 }
 
-void reconstruct_client_epoll(int fd, struct epoll_event* ev, Data* data) {
+
+int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, Data* data) {
   
   ev->events = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
   ev->data.ptr = data;
 
-  if (epoll_ctl(fd, EPOLL_CTL_MOD, data->socket, ev) == -1)
-    quit("[Error] epoll_ctl");
+  int epoll_status = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, data->socket, ev);
+
+  // ! Aca habia un quit antes, pero me parecio mas apropiado retornar el epoll_status en vez de quittear directamente.
+  return epoll_status;
+
 } 
 
 

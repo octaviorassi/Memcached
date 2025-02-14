@@ -21,7 +21,6 @@ CacheStats cache_stats_create() {
     if (stats == NULL)
         return NULL;
 
-    // Aca no chequeo que se inicialicen
     stats->put_counter = atom_counter_create(0);
     stats->get_counter = atom_counter_create(0);
     stats->del_counter = atom_counter_create(0);
@@ -79,76 +78,42 @@ int cache_stats_evictcounter_dec(CacheStats cstats) {
 }
 
 
-void cache_stats_show2(CacheStats cstats, char* buf) { 
+StatsReport cache_stats_report(CacheStats cstats) {
+
+    StatsReport report;
+    
+    report.put   = atom_counter_get(cstats->put_counter);
+    report.get   = atom_counter_get(cstats->get_counter);
+    report.del   = atom_counter_get(cstats->del_counter);
+    report.key   = atom_counter_get(cstats->key_counter);
+    report.evict = atom_counter_get(cstats->evict_counter);
+
+    return report;
+
+}
+
+
+void cache_stats_show(CacheStats cstats, char* buf) { 
    
-    // Por ahora imprime en pantalla unicamente.
-
-    printf("******************* CACHE STATS *******************\n");
-    printf("PUTS: %u\n", atom_counter_get(cstats->put_counter));
-    printf("GETS: %u\n", atom_counter_get(cstats->get_counter));
-    printf("DELS: %u\n", atom_counter_get(cstats->del_counter));
-
-    printf("KEYS: %u\n", atom_counter_get(cstats->key_counter));
-    printf("***************************************************\n");
+    printf("****************** CACHE STATS *******************\n");
+    printf("PUTS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->put_counter));
+    printf("GETS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->get_counter));
+    printf("DELS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->del_counter));
+    printf("KEYS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->key_counter));
+    
+    printf("EVICTS: " COUNTER_FORMAT "\n",
+            atom_counter_get(cstats->evict_counter));
+    printf("**************************************************\n");
 
     return;
     
 }
-void cache_stats_show(CacheStats cstats, char* buf) {
-    // Calculate the maximum line length for the box
-    char temp[256];
-    int max_length = 0;
-
-    // Generate each line of stats and check its length
-    snprintf(temp, sizeof(temp), "PUTS: %u", atom_counter_get(cstats->put_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "GETS: %u", atom_counter_get(cstats->get_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "DELS: %u", atom_counter_get(cstats->del_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "KEYS: %u", atom_counter_get(cstats->key_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    // Add padding for the box borders and margins
-    // Each line has 2 spaces on the left and 1 space on the right, plus the borders
-    int box_width = max_length + 4;  // 2 spaces + 2 borders
-
-    // Print the top border of the box
-    printf("\n\n╔");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╗\n");
-
-    // Print the title
-    printf("║ %-*s  ║\n", max_length, "CACHE STATS");
-
-    // Print a separator line
-    printf("╠");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╣\n");
-
-    // Print the stats
-    printf("║ PUTS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->put_counter));
-    printf("║ GETS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->get_counter));
-    printf("║ DELS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->del_counter));
-    
-    printf("║ EVICTS: %-*u║\n", max_length - 5, atom_counter_get(cstats->evict_counter));
-    printf("║ KEYS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->key_counter));
-
-
-    // Print the bottom border of the box
-    printf("╚");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╝\n\n");
-}   
 
 
 int cache_stats_destroy(CacheStats cstats) {
 
     if (cstats == NULL)
-        return 0;
+        return 1;
     
     atom_counter_destroy(cstats->put_counter);
     atom_counter_destroy(cstats->get_counter);

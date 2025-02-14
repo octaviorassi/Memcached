@@ -4,7 +4,7 @@
 
 struct AtomCounter {
 
-    unsigned int counter;
+    Counter counter;
 
     pthread_mutex_t lock;
     
@@ -29,14 +29,14 @@ AtomCounter atom_counter_create(unsigned int initial_value) {
 
 }
 
-unsigned int atom_counter_get(AtomCounter counter) {
+Counter atom_counter_get(AtomCounter counter) {
 
     if (counter == NULL)
         return 0;
     
     pthread_mutex_lock(&counter->lock);
 
-    unsigned int count = counter->counter;
+    Counter count = counter->counter;
 
     pthread_mutex_unlock(&counter->lock);
 
