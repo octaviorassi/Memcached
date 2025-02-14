@@ -92,8 +92,8 @@ replace_sockets([Socket | Sockets], ServerSocket, AvailableSockets) ->
   case Socket == ServerSocket of
     
     true  ->
-      Index = rand:uniform(length(AvailableSockets), AvailableSockets),
-      ReplacementSocket = lists:nth(Index),
+      Index = rand:uniform(length(AvailableSockets)),
+      ReplacementSocket = lists:nth(Index, AvailableSockets),
       [ReplacementSocket | ReplaceSockets];
     
     false -> 
@@ -168,7 +168,9 @@ client(ServerMap) ->
       Response = utils:recv_bytes(ServerSocket, 1),
 
       case  Response of 
-        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
+        serverError -> 
+          PID ! enotfound,
+          client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
         <<?OK>>   -> PID ! ok;
         <<?ENOTFOUND>> -> PID ! enotfound 
       end,
@@ -188,7 +190,9 @@ client(ServerMap) ->
       Response = utils:recv_bytes(ServerSocket, 1),
 
       case Response of
-        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
+        serverError -> 
+          PID ! enotfound,
+          client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
         <<?OK>>   -> 
           <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
           ?PRINT(ValueLength),
