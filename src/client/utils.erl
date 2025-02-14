@@ -4,16 +4,17 @@
 
 recv_bytes(Socket, N) -> recv_bytes_aux(Socket, N, <<>>).
 
-recv_bytes_aux(_, 0, Buffer) -> Buffer; % Ya dejamos de leer 
-
-
+recv_bytes_aux(_     , 0, Buffer) -> Buffer; 
 recv_bytes_aux(Socket, N, Buffer) -> 
+ 
   case gen_tcp:recv(Socket, N) of
     {ok, Message} -> 
-      recv_bytes_aux(Socket, N - byte_size(Message), <<Message/binary, Buffer/binary>>)
-  end. 
-  
+      recv_bytes_aux(Socket, N - byte_size(Message), <<Message/binary, Buffer/binary>>);
 
+    {error, _} -> serverError % No nos importa mucho la razon, es un error
+  end. 
+
+  
 binary_convert(Term) ->
   BinaryTerm = term_to_binary(Term),
   BinaryLength = byte_size(BinaryTerm),
@@ -21,15 +22,29 @@ binary_convert(Term) ->
 
 
 create_socket(ServerInfo) ->
-  
+
   {IpAddress, Port} = ServerInfo,
   Options = [binary, {active, false}, inet, {packet, 0}],
-  {ok, Socket} = gen_tcp:connect(IpAddress, Port, Options),
-  Socket.
+  
+  case gen_tcp:connect(IpAddress, Port, Options) of 
 
+    {ok, Socket} -> Socket;
+    {error, _}   -> { error, ServerInfo }
+
+  end.
+
+
+all_created([])                         -> allCreated;
+all_created([{ error, ServerInfo} | _]) -> { notCreated, ServerInfo };
+all_created([_ | Sockets])              -> all_created(Sockets).
 
 create_sockets(ServerList) -> 
-  lists:map(fun create_socket/1, ServerList). % A cada par IP,Puerto le asignamos un socket
+
+  SocketList = lists:map(fun create_socket/1, ServerList),
+  case all_created(SocketList) of
+    allCreated               -> SocketList;
+    {notCreated, ServerInfo} -> {createSocketsError, ServerInfo}
+  end.
 
 
 create_message(Operation, KeyLength, Key) ->
