@@ -14,13 +14,7 @@ struct CacheStats {
 
 };
 
-struct StatsReport {
-    Counter put;
-    Counter get;
-    Counter del;
-    Counter key;
-    Counter evict;
-};
+
 
 
 CacheStats cache_stats_create() {
@@ -29,7 +23,6 @@ CacheStats cache_stats_create() {
     if (stats == NULL)
         return NULL;
 
-    // Aca no chequeo que se inicialicen
     stats->put_counter = atom_counter_create(0);
     stats->get_counter = atom_counter_create(0);
     stats->del_counter = atom_counter_create(0);
@@ -101,7 +94,7 @@ StatsReport cache_stats_report(CacheStats cstats) {
 
 }
 
-void cache_stats_show2(CacheStats cstats, char* buf) { 
+void cache_stats_show(CacheStats cstats, char* buf) { 
    
     printf("******************* CACHE STATS *******************\n");
     printf("PUTS: %u\n", atom_counter_get(cstats->put_counter));
@@ -114,57 +107,6 @@ void cache_stats_show2(CacheStats cstats, char* buf) {
     return;
     
 }
-
-void cache_stats_show(CacheStats cstats, char* buf) {
-    // Calculate the maximum line length for the box
-    char temp[256];
-    int max_length = 0;
-
-    // Generate each line of stats and check its length
-    snprintf(temp, sizeof(temp), "PUTS: %u", atom_counter_get(cstats->put_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "GETS: %u", atom_counter_get(cstats->get_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "DELS: %u", atom_counter_get(cstats->del_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    snprintf(temp, sizeof(temp), "KEYS: %u", atom_counter_get(cstats->key_counter));
-    if (strlen(temp) > max_length) max_length = strlen(temp);
-
-    // Add padding for the box borders and margins
-    // Each line has 2 spaces on the left and 1 space on the right, plus the borders
-    int box_width = max_length + 4;  // 2 spaces + 2 borders
-
-    // Print the top border of the box
-    printf("\n\n╔");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╗\n");
-
-    // Print the title
-    printf("║ %-*s  ║\n", max_length, "CACHE STATS");
-
-    // Print a separator line
-    printf("╠");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╣\n");
-
-    // Print the stats
-    printf("║ PUTS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->put_counter));
-    printf("║ GETS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->get_counter));
-    printf("║ DELS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->del_counter));
-    
-    printf("║ EVICTS: %-*u║\n", max_length - 5, atom_counter_get(cstats->evict_counter));
-    printf("║ KEYS: %-*u  ║\n", max_length - 5, atom_counter_get(cstats->key_counter));
-
-
-    // Print the bottom border of the box
-    printf("╚");
-    for (int i = 0; i < box_width; i++) printf("═");
-    printf("╝\n\n");
-}   
-
 
 int cache_stats_destroy(CacheStats cstats) {
 

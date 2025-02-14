@@ -3,8 +3,17 @@
 
 #include "../helpers/atom_counter.h"
 
+#define STATS_COUNT 5 // Es la cantidad de estadisticos que reportamos.
+
 typedef struct CacheStats* CacheStats;
-typedef struct StatsReport StatsReport;
+
+typedef struct StatsReport {
+    Counter put;
+    Counter get;
+    Counter del;
+    Counter key;
+    Counter evict;
+} StatsReport;
 
 /**
  *  @brief Crea un nuevo `CacheStats` con todos sus contadores de operaciones inicializados a 0.
