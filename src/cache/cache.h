@@ -1,8 +1,10 @@
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+#include "cache_stats.h"
 #include "../dynalloc/dynalloc.h"
 #include "../helpers/results.h"
+
 
 // Macro para debugging global
 #define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
@@ -10,6 +12,7 @@
 // Hash default
 unsigned long kr_hash(char* key, size_t size);
 
+// Forward declarations para evitar los doble include.
 typedef struct Cache* Cache;
 typedef unsigned long (*HashFunction)(void* , size_t);
 

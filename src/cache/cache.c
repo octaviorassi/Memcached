@@ -5,10 +5,10 @@
 #include "../hashmap/hashnode.h"
 #include "../lru/lru.h"
 #include "../lru/lrunode.h"
-#include "cache_stats.h"
 
 #define N_LOCKS 10
 #define N_BUCKETS 10 * N_LOCKS
+
 
 struct Cache {
 
@@ -27,7 +27,17 @@ struct Cache {
 
 };
 
-// Funcion de hash de K&R.
+
+/* Prototipos de las utilidades */
+
+static int hashmap_init(HashFunction hash, Cache cache);
+static int hashmap_destroy(Cache cache);
+static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
+static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
+
+
+/* Funcion de hash de K&R */
+
 unsigned long kr_hash(char* key, size_t size) {
 	
   unsigned long hashval;
@@ -39,11 +49,6 @@ unsigned long kr_hash(char* key, size_t size) {
   return hashval;
 }
 
-// Utils
-static int hashmap_init(HashFunction hash, Cache cache);
-static int hashmap_destroy(Cache cache);
-static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
-static pthread_mutex_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
 
 /* Interfaz de la Cache */
 
