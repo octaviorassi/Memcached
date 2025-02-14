@@ -1,26 +1,53 @@
 -module(client).
--export([start/1, put/2, del/1, get/1, stats/0, client/1, startDefault/0]).
+-export([start/1, put/2, del/1, get/1, stats/0, startDefault/0, quit/0, client/1]).
 -include("protocol.hrl").
 
 -define(BUCKET_FACTOR, 10).
--record(serverMap, {size, servers, identifier}).
+-record(serverMap, {size, servers, identifier, available_sockets}).
 
 -define(PRINT(Value), io:format("[Debug] ~p~n", [Value])).
+
+
+
+
+is_registered(PidAlias) ->
+  case whereis(PidAlias) of
+    undefined -> no;
+    _         -> yes
+  end.
+
+
+quit() ->
+
+  case is_registered(client) of 
+    
+    no -> notExistingClient;  
+    
+    yes -> client ! quitClient,
+           unregister(client),
+           clientClosed
+  end.
+  
 
 
 start(ServerList) ->
 
   Length = length(ServerList),
-  Sockets = utils:create_sockets(ServerList), % Ver como administrar errores
+
+  case is_registered(client) of 
+    yes -> existingClient;
+    no  -> case utils:create_sockets(ServerList) of
+    
+            {createSocketsError, ServerInfo} -> {invalidServer, ServerInfo};
+
+            Sockets -> Servers = [lists:nth((I rem Length) + 1, Sockets) || I <- lists:seq(0, Length * ?BUCKET_FACTOR - 1)],
+                       ServerMap = #serverMap{size = Length, servers = Servers, available_sockets = Sockets},
+                       ClientPID = spawn(?MODULE, client, [ServerMap]),
+                       register(client, ClientPID),
+                       clientCreated
+          end
+  end.
   
-  Servers = [lists:nth((I rem Length) + 1, Sockets) || I <- lists:seq(0, Length * ?BUCKET_FACTOR - 1)],
-  ServerMap = #serverMap{size = Length, servers = Servers},
-  
-  ClientPID = spawn(?MODULE, client, [ServerMap]),
-  
-  register(client, ClientPID), % Lo registramos globalmente
-  
-  clientCreated. % Salio todo OK
   
 
 startDefault() ->
@@ -59,12 +86,51 @@ stats() ->
   end.
 
 
+replace_sockets([], _, _) -> [];
+replace_sockets([Socket | Sockets], ServerSocket, AvailableSockets) ->
+  ReplaceSockets = replace_sockets(Sockets, ServerSocket, AvailableSockets), 
+  case Socket == ServerSocket of
+    
+    true  ->
+      Index = rand:uniform(length(AvailableSockets), AvailableSockets),
+      ReplacementSocket = lists:nth(Index),
+      [ReplacementSocket | ReplaceSockets];
+    
+    false -> 
+      [Socket | ReplaceSockets]
+  end.
 
+rebalance_servers(ServerMap, ServerSocket) ->
+  
+  Id      = ServerMap#serverMap.identifier, 
+  Size    = ServerMap#serverMap.size, 
+  Servers = ServerMap#serverMap.servers, 
+  Sockets = ServerMap#serverMap.available_sockets, 
+
+  AvailableSockets = lists:delete(ServerSocket, Sockets),
+  RebalancedServers = replace_sockets(Servers, ServerSocket, AvailableSockets),
+
+  NewServerMap = #serverMap{ size = Size, 
+                             servers = RebalancedServers,
+                             available_sockets = AvailableSockets,
+                             identifier = Id},
+  NewServerMap.
+
+get_server(Key, ServerMap) ->
+
+    BinaryHash = crypto:hash(sha, Key),
+
+    MapIndex = binary:decode_unsigned(BinaryHash),
+    Index = (MapIndex rem (ServerMap#serverMap.size)) + 1,
+
+    lists:nth(Index, ServerMap#serverMap.servers).
+
+
+close_server_sockets(ServerSockets) ->
+  lists:foreach(fun gen_tcp:close/1, ServerSockets).
 
 
 client(ServerMap) ->
-
-  % Cada parte del receive la podemos modularizar y quedaria mejor y mas simple
 
   receive
     { put, Key, Value, PID } -> 
@@ -76,10 +142,14 @@ client(ServerMap) ->
 
       PutMessage = utils:create_message(?PUT, KeyLength, BinaryKey, ValueLength, BinaryValue),
 
-      gen_tcp:send(ServerSocket, PutMessage),
+      gen_tcp:send(ServerSocket, PutMessage), % Cambiar por sendn
+
       Response = utils:recv_bytes(ServerSocket, 1),
 
-      case  Response of 
+      case Response of 
+        
+        serverError -> client ! { put, Key, Value, PID},                    % Reenviamos el mensaje
+                       client(rebalance_servers(ServerMap, ServerSocket));  % Rebalancear la carga
         <<?OK>>   -> PID ! ok;
         <<?EBIG>> -> PID ! ebig 
       end,
@@ -88,7 +158,7 @@ client(ServerMap) ->
 
     { del, Key, PID } ->
 
-      {BinaryKey, KeyLength} = utils:binary_convert(Key),
+      { BinaryKey, KeyLength} = utils:binary_convert(Key),
       ServerSocket = get_server(BinaryKey, ServerMap),
 
       DelMessage = utils:create_message(?DEL, KeyLength, BinaryKey),
@@ -98,6 +168,7 @@ client(ServerMap) ->
       Response = utils:recv_bytes(ServerSocket, 1),
 
       case  Response of 
+        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
         <<?OK>>   -> PID ! ok;
         <<?ENOTFOUND>> -> PID ! enotfound 
       end,
@@ -116,7 +187,8 @@ client(ServerMap) ->
       
       Response = utils:recv_bytes(ServerSocket, 1),
 
-      case  Response of 
+      case Response of
+        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
         <<?OK>>   -> 
           <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
           ?PRINT(ValueLength),
@@ -132,24 +204,12 @@ client(ServerMap) ->
 
     { stats, PID } -> PID;
 
+
+    quitClient -> close_server_sockets(ServerMap#serverMap.available_sockets);
+
     Other -> 
       error(error),
       io:fwrite("[Error] Invalid request: ~p~n",[Other])
-  
   end.
 
 
-
-
-
-
-
-
-get_server(Key, ServerMap) ->
-
-    BinaryHash = crypto:hash(sha, Key),
-
-    MapIndex = binary:decode_unsigned(BinaryHash),
-    Index = (MapIndex rem (ServerMap#serverMap.size)) + 1,
-
-    lists:nth(Index, ServerMap#serverMap.servers).
