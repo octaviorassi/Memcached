@@ -4,7 +4,7 @@
 
 -define(BUCKET_FACTOR, 10).
 -record(serverMap, {size, servers, identifier, available_sockets}).
-
+-record(request, {command, key, value, pid}).
 -define(PRINT(Value), io:format("[Debug] ~p~n", [Value])).
 
 
@@ -92,8 +92,8 @@ replace_sockets([Socket | Sockets], ServerSocket, AvailableSockets) ->
   case Socket == ServerSocket of
     
     true  ->
-      Index = rand:uniform(length(AvailableSockets), AvailableSockets),
-      ReplacementSocket = lists:nth(Index),
+      Index = rand:uniform(length(AvailableSockets)),
+      ReplacementSocket = lists:nth(Index, AvailableSockets),
       [ReplacementSocket | ReplaceSockets];
     
     false -> 
@@ -130,10 +130,63 @@ close_server_sockets(ServerSockets) ->
   lists:foreach(fun gen_tcp:close/1, ServerSockets).
 
 
+
+handle_ok(ServerSocket, get) ->
+  <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
+  BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
+  Value = binary_to_term(BinaryValue),
+  {ok, Value};
+handle_ok(_, stats) -> todo;
+handle_ok(_, _) -> ok. 
+
+
+request_to_tuple(Request) ->
+  { Request#request.command,
+    Request#request.key,
+    Request#request.value,
+    Request#request.pid }.
+
+handle_server_error(Request) ->
+  case Request#request.command of 
+    put -> { client, request_to_tuple(Request) };
+    _   -> { Request#request.pid, enotfound }
+  end.
+
+
+handle_response(ServerSocket, ServerMap, Request) ->
+
+  Command = utils:recv_bytes(ServerSocket, 1),
+
+  NewServerMap = 
+    case Command of 
+      serverError -> rebalance_servers(ServerMap, ServerSocket); % Actualizamos los servers
+      _           -> ServerMap                                   % Mantenemos los mismos
+    end,
+
+  Response = 
+    case Command of 
+      serverError    -> element(2, handle_server_error(Request));
+      <<?OK>>        -> handle_ok(ServerSocket, Request#request.command);
+      <<?EBIG>>      -> ebig;
+      <<?ENOTFOUND>> -> enotfound
+    end,
+
+  Target = 
+    case Command of 
+      serverError -> element(1, handle_server_error(Request));
+      _           -> Request#request.pid
+    end,
+
+  {Response, NewServerMap, Target}.
+
+
 client(ServerMap) ->
 
   receive
+
     { put, Key, Value, PID } -> 
+
+      Request = #request{command = put, key = Key, value = Value, pid = PID},
 
       {BinaryKey, KeyLength}     = utils:binary_convert(Key),
       {BinaryValue, ValueLength} = utils:binary_convert(Value),
@@ -144,19 +197,15 @@ client(ServerMap) ->
 
       gen_tcp:send(ServerSocket, PutMessage), % Cambiar por sendn
 
-      Response = utils:recv_bytes(ServerSocket, 1),
+      {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-      case Response of 
-        
-        serverError -> client ! { put, Key, Value, PID},                    % Reenviamos el mensaje
-                       client(rebalance_servers(ServerMap, ServerSocket));  % Rebalancear la carga
-        <<?OK>>   -> PID ! ok;
-        <<?EBIG>> -> PID ! ebig 
-      end,
+      Target ! Response, % Podriamos ponerlo en el propio handle_response
 
-      client(ServerMap);
+      client(NewServerMap);
 
     { del, Key, PID } ->
+
+      Request = #request{command = del, key = Key, pid = PID},
 
       { BinaryKey, KeyLength} = utils:binary_convert(Key),
       ServerSocket = get_server(BinaryKey, ServerMap),
@@ -165,42 +214,58 @@ client(ServerMap) ->
 
       gen_tcp:send(ServerSocket, DelMessage),
 
-      Response = utils:recv_bytes(ServerSocket, 1),
+      {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-      case  Response of 
-        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
-        <<?OK>>   -> PID ! ok;
-        <<?ENOTFOUND>> -> PID ! enotfound 
-      end,
+      Target ! Response, % Podriamos ponerlo en el propio handle_response
+
+      client(NewServerMap);
+
+      % Response = utils:recv_bytes(ServerSocket, 1),
+
+      % case  Response of 
+      %   serverError -> 
+      %     PID ! enotfound,
+      %     client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
+      %   <<?OK>>   -> PID ! ok;
+      %   <<?ENOTFOUND>> -> PID ! enotfound 
+      % end,
 
       % Volvemos a entrar en loop
-      client(ServerMap);
 
     { get, Key, PID } ->
       
+      Request = #request{command = get, key = Key, pid = PID},
+
       {BinaryKey, KeyLength} = utils:binary_convert(Key),
       ServerSocket = get_server(BinaryKey, ServerMap),
 
       GetMessage = utils:create_message(?GET, KeyLength, BinaryKey),
 
       gen_tcp:send(ServerSocket, GetMessage),
-      
-      Response = utils:recv_bytes(ServerSocket, 1),
 
-      case Response of
-        serverError -> client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
-        <<?OK>>   -> 
-          <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
-          ?PRINT(ValueLength),
-          BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
-          Value = binary_to_term(BinaryValue),
-          PID ! {ok, Value};
+      {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-        <<?ENOTFOUND>> -> PID ! enotfound 
-      end,
+      Target ! Response, % Podriamos ponerlo en el propio handle_response
 
-      % Volvemos a entrar en loop
-      client(ServerMap);
+      client(NewServerMap);
+
+      % Response = utils:recv_bytes(ServerSocket, 1),
+
+      % case Response of
+      %   serverError -> 
+      %     PID ! enotfound,
+      %     client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
+      %   <<?OK>>   -> 
+      %     <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
+      %     BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
+      %     Value = binary_to_term(BinaryValue),
+      %     PID ! {ok, Value};
+
+      %   <<?ENOTFOUND>> -> PID ! enotfound 
+      % end,
+
+      % % Volvemos a entrar en loop
+      % client(ServerMap);
 
     { stats, PID } -> PID;
 
