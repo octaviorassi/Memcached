@@ -102,6 +102,29 @@ int cache_stats_key_counter_inc(CacheStats cstats);
 int cache_stats_key_counter_dec(CacheStats cstats);
 
 /**
+ *  @brief Aumenta el acumulador de memoria asignada de la cache en `mem`.
+ * 
+ *  @param cstats Puntero a la estructura CacheStats con informacion de la cache.
+ *  @param mem Cantidad de memoria a incrementar.
+ * 
+ *  @return 0 si la operacion es exitosa, -1 si se produjo un error.
+ */
+int cache_stats_allocated_memory_add(CacheStats cstats, Counter mem);
+
+
+/**
+ *  @brief Substrae `rem` del acumulador de memoria asignada de la cache.
+ * 
+ *  @param cstats Puntero a la estructura CacheStats con informacion de la cache.
+ *  @param mem Cantidad de memoria a sustraer.
+ * 
+ *  @return 0 si la operacion es exitosa, -1 si se produjo un error.
+ */
+int cache_stats_allocated_memory_free(CacheStats cstats, Counter mem);
+
+
+
+/**
  *  @brief Genera un StatsReport con informacion sobre las metricas de la cache al momento de ser invocada.
  * 
  *  @param cstats El CacheStats asociado a la cache de interes.

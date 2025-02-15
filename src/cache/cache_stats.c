@@ -12,6 +12,7 @@ struct CacheStats {
     AtomCounter evict_counter;
     AtomCounter key_counter;
 
+    AtomCounter allocated_memory;
 };
 
 
@@ -73,7 +74,7 @@ int cache_stats_evict_counter_inc(CacheStats cstats) {
     return atom_counter_inc(cstats->evict_counter);
 }
 
-int cache_stats_evictcounter_dec(CacheStats cstats) {
+int cache_stats_evict_counter_dec(CacheStats cstats) {
     return atom_counter_dec(cstats->evict_counter);
 }
 
@@ -91,6 +92,8 @@ StatsReport cache_stats_report(CacheStats cstats) {
     return report;
 
 }
+
+
 
 
 void cache_stats_show(CacheStats cstats, char* buf) { 
