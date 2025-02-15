@@ -22,7 +22,7 @@ ssize_t recv_socket(int socket, char* message_buffer, int size, Data* data) {
   while (bytes_received > 0 && total_bytes_received < size) {
 
     bytes_received = recv(socket, message_buffer + total_bytes_received,
-                          size - bytes_received, 0);
+                          size - total_bytes_received, 0);
 
     total_bytes_received+= bytes_received;
   }

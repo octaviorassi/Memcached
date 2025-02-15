@@ -195,7 +195,6 @@ client(ServerMap) ->
           client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
         <<?OK>>   -> 
           <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
-          ?PRINT(ValueLength),
           BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
           Value = binary_to_term(BinaryValue),
           PID ! {ok, Value};
