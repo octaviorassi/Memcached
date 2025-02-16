@@ -4,34 +4,42 @@
 #include "dynalloc.h"
 #include "../cache/cache.h"
 
-#define DYNALLOC_FAIL_RATE 10
+#define DYNALLOC_FAIL_RATE 50
 #define MAX_ATTEMPTS 2
 
 extern Cache global_cache;
 
 void* dynalloc(size_t sz) {
     
+    if (DYNALLOC_FAIL_RATE > 0 && (rand() % 100) < DYNALLOC_FAIL_RATE)
+        PRINT("Falla de dynalloc simulada.");
+    else {
+        void* ptr = malloc(sz);
+        if (ptr != NULL)
+            return ptr;
+    }
 
-    void* ptr = malloc(sz);
-    if (ptr != NULL)
-        return ptr;
-    
     PRINT("No hay memoria suficiente. Debemos liberar memoria.");
 
-    // Liberamos memoria.
-    int num_nodes_to_eliminate = 2;
-    int num_nodes_eliminated = 0;
-    int num_nodes_eliminated_acum = 0;
+    // Liberamos el 20% de la memoria actualmente en uso 
+    size_t memory_goal = cache_stats_get_allocated_memory(
+                         cache_get_cstats(global_cache)) / 5;
+    size_t total_freed_memory = 0;
+    size_t freed_memory;
 
-    while (num_nodes_eliminated_acum < num_nodes_to_eliminate) {
+    PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(global_cache)));
+    PRINT("Memory goal: %lu", memory_goal);
 
-        num_nodes_eliminated = cache_free_up_memory(global_cache, num_nodes_to_eliminate - num_nodes_eliminated_acum);
-        
-        if (num_nodes_eliminated < 0) return NULL;
+    while (total_freed_memory < memory_goal) {
+        freed_memory = cache_free_up_memory(global_cache);
+        if (freed_memory < 0)
+            return NULL;
 
-        num_nodes_eliminated_acum += num_nodes_eliminated;
+        total_freed_memory += freed_memory;
     }
- 
+
+    PRINT("Memoria liberada correctamente. Total liberado: %lu", total_freed_memory);
+
     // Ahora deberiamos poder asignar el bloque. Si no, intentamos de nuevo.
     return dynalloc(sz);
 

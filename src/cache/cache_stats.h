@@ -13,6 +13,7 @@ typedef struct StatsReport {
     Counter del;
     Counter key;
     Counter evict;
+    Counter allocated_memory;
 } StatsReport;
 
 /**
@@ -121,6 +122,14 @@ int cache_stats_allocated_memory_add(CacheStats cstats, Counter mem);
  *  @return 0 si la operacion es exitosa, -1 si se produjo un error.
  */
 int cache_stats_allocated_memory_free(CacheStats cstats, Counter mem);
+
+/**
+ *  @brief Obtiene la cantidad de memoria asignada dinamicamente para claves y valores de la cache asociada a `cstats`.abort
+ *  
+ *  @param cstats Puntero a la estructura CacheStats con informacion de la cache.
+ *  @return La cantidad de memoria asignada dinamicamente a claves y valores.
+ */
+Counter cache_stats_get_allocated_memory(CacheStats cstats);
 
 
 

@@ -103,7 +103,7 @@ int atom_counter_drop(AtomCounter counter, Counter n) {
     pthread_mutex_lock(&counter->lock);
     
     if (counter->counter > n)
-        counter->counter += n;
+        counter->counter -= n;
     else
         counter->counter = 0;
 
