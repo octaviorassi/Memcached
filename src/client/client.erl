@@ -146,10 +146,16 @@ request_to_tuple(Request) ->
     Request#request.value,
     Request#request.pid }.
 
-handle_server_error(Request) ->
+handle_server_error_response(Request) ->
   case Request#request.command of 
-    put -> { client, request_to_tuple(Request) };
-    _   -> { Request#request.pid, enotfound }
+    put -> request_to_tuple(Request);
+    _   -> enotfound
+  end.
+
+handle_server_error_target(Request) ->
+  case Request#request.command of 
+    put -> client;
+    _   -> Request#request.pid
   end.
 
 
@@ -165,7 +171,7 @@ handle_response(ServerSocket, ServerMap, Request) ->
 
   Response = 
     case Command of 
-      serverError    -> element(2, handle_server_error(Request));
+      serverError    -> handle_server_error_response(Request);
       <<?OK>>        -> handle_ok(ServerSocket, Request#request.command);
       <<?EBIG>>      -> ebig;
       <<?ENOTFOUND>> -> enotfound
@@ -173,7 +179,7 @@ handle_response(ServerSocket, ServerMap, Request) ->
 
   Target = 
     case Command of 
-      serverError -> element(1, handle_server_error(Request));
+      serverError -> element(1, handle_server_error_target(Request));
       _           -> Request#request.pid
     end,
 
@@ -195,11 +201,11 @@ client(ServerMap) ->
 
       PutMessage = utils:create_message(?PUT, KeyLength, BinaryKey, ValueLength, BinaryValue),
 
-      gen_tcp:send(ServerSocket, PutMessage), % Cambiar por sendn
+      gen_tcp:send(ServerSocket, PutMessage), 
 
       {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-      Target ! Response, % Podriamos ponerlo en el propio handle_response
+      Target ! Response, 
 
       client(NewServerMap);
 
@@ -216,21 +222,9 @@ client(ServerMap) ->
 
       {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-      Target ! Response, % Podriamos ponerlo en el propio handle_response
+      Target ! Response, 
 
       client(NewServerMap);
-
-      % Response = utils:recv_bytes(ServerSocket, 1),
-
-      % case  Response of 
-      %   serverError -> 
-      %     PID ! enotfound,
-      %     client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
-      %   <<?OK>>   -> PID ! ok;
-      %   <<?ENOTFOUND>> -> PID ! enotfound 
-      % end,
-
-      % Volvemos a entrar en loop
 
     { get, Key, PID } ->
       
@@ -245,27 +239,9 @@ client(ServerMap) ->
 
       {Response, NewServerMap, Target} = handle_response(ServerSocket, ServerMap, Request),
 
-      Target ! Response, % Podriamos ponerlo en el propio handle_response
+      Target ! Response, 
 
       client(NewServerMap);
-
-      % Response = utils:recv_bytes(ServerSocket, 1),
-
-      % case Response of
-      %   serverError -> 
-      %     PID ! enotfound,
-      %     client(rebalance_servers(ServerMap, ServerSocket)); % Estaria bueno que avise
-      %   <<?OK>>   -> 
-      %     <<ValueLength:32/big>> = utils:recv_bytes(ServerSocket, 4),
-      %     BinaryValue = utils:recv_bytes(ServerSocket, ValueLength),
-      %     Value = binary_to_term(BinaryValue),
-      %     PID ! {ok, Value};
-
-      %   <<?ENOTFOUND>> -> PID ! enotfound 
-      % end,
-
-      % % Volvemos a entrar en loop
-      % client(ServerMap);
 
     { stats, PID } -> PID;
 

@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
 
   // Bajar privilegios o algo por el estilo
 
-  exec_server("../../bin/cache_server", server_socket, args.num_threads);
+  exec_server("./bin/cache_server", server_socket, args.num_threads);
  
   return 0;
 }
