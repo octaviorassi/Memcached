@@ -16,7 +16,14 @@ OBJS_STARTER = $(filter $(OBJ_DIR)/server/server_starter%.o, $(OBJS))
 
 SERVER  = $(BIN_DIR)/cache_server
 STARTER = $(BIN_DIR)/server 
+
 all: $(SERVER) $(STARTER) 
+
+set-bind-privilege:
+	@sudo setcap 'cap_net_bind_service=+ep' $(STARTER)
+	
+remove-bind-privilege:
+	@sudo setcap 'cap_net_bind_service=+ep' $(STARTER)
 
 $(SERVER): $(OBJS_SERVER)
 	@mkdir -p $(BIN_DIR)
