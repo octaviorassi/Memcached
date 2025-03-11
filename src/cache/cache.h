@@ -77,9 +77,18 @@ StatsReport cache_report(Cache cache);
  *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
  * 
  *  @param cache La cache donde se liberara memoria.
- *  @return Un aproximado del tamaño del bloque liberado, o 0 si no pudo eliminarse ningun nodo.
+ *  @return La cantidad de memoria liberada al eliminar la clave y el valor menos utilizados.
  */
-int cache_free_up_memory(Cache cache, int);
+size_t cache_free_up_memory(Cache cache);
+
+
+/**
+ *  @brief Obtiene el puntero a la estructura que almacena las estadisticas de la cache objetivo.
+ *    
+ *  @param cache Cache objetivo.
+ *  @return El puntero a la estructura CacheStats.
+ */
+CacheStats cache_get_cstats(Cache cache);
 
 
 /**

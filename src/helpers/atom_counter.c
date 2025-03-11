@@ -29,6 +29,7 @@ AtomCounter atom_counter_create(unsigned int initial_value) {
 
 }
 
+
 Counter atom_counter_get(AtomCounter counter) {
 
     if (counter == NULL)
@@ -58,7 +59,8 @@ int atom_counter_inc(AtomCounter counter) {
 
     return 0;
 
-};
+}
+
 
 int atom_counter_dec(AtomCounter counter) {
 
@@ -67,13 +69,50 @@ int atom_counter_dec(AtomCounter counter) {
     
     pthread_mutex_lock(&counter->lock);
 
-    counter->counter--;
+    if (counter->counter > 0)
+        counter->counter--;
 
     pthread_mutex_unlock(&counter->lock);
 
     return 0;
 
-};
+}
+
+
+int atom_counter_add(AtomCounter counter, Counter n) {
+
+    if (counter == NULL)
+        return -1;
+
+    pthread_mutex_lock(&counter->lock);
+
+    counter->counter += n;
+
+    pthread_mutex_unlock(&counter->lock);
+
+    return 0;
+
+}
+
+
+int atom_counter_drop(AtomCounter counter, Counter n) {
+
+    if (counter == NULL)
+        return -1;
+
+    pthread_mutex_lock(&counter->lock);
+    
+    if (counter->counter > n)
+        counter->counter -= n;
+    else
+        counter->counter = 0;
+
+    pthread_mutex_unlock(&counter->lock);
+
+    return 0;
+
+}
+
 
 int atom_counter_destroy(AtomCounter counter) {
 
@@ -86,4 +125,4 @@ int atom_counter_destroy(AtomCounter counter) {
 
     return 0;
 
-};
+}

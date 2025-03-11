@@ -153,7 +153,14 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   // Si la clave ya pertenecia a la cache, solo actualizamos valor y prioridad.
   if (node != NULL) {
+
+    cache_stats_allocated_memory_free(cache->stats,
+                                      hashnode_get_val_size(node));
+
     hashnode_set_val(node, val, val_size, cache);
+
+    cache_stats_allocated_memory_add(cache->stats, val_size);
+
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     pthread_mutex_unlock(lock);
     return 0;
@@ -185,6 +192,11 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   pthread_mutex_unlock(lock);
 
   cache_stats_key_counter_inc(cache->stats);
+  PRINT("key_size, val_size, sum: %lu - %lu - %lu", key_size, val_size, key_size + val_size);
+  PRINT("Allocated memory pre-put: %lu", cache_stats_get_allocated_memory(cache->stats));
+  cache_stats_allocated_memory_add(cache->stats, key_size + val_size);
+  PRINT("Allocated memory post-put: %lu", cache_stats_get_allocated_memory(cache->stats));
+
 
   return 0;
 
@@ -226,12 +238,15 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
     cache->buckets[bucket_number] = hashnode_get_next(node);
 
   // Y liberamos su memoria
+  size_t allocated_memory = hashnode_get_key_size(node) +
+                            hashnode_get_val_size(node);
   hashnode_destroy(node);
   
   pthread_mutex_unlock(lock);
 
   cache_stats_del_counter_inc(cache->stats);
   cache_stats_key_counter_dec(cache->stats);
+  cache_stats_allocated_memory_free(cache->stats, allocated_memory);
 
   return 0;
 
@@ -244,7 +259,7 @@ StatsReport cache_report(Cache cache) {
 }
 
 
-int cache_free_up_memory(Cache cache, int number_to_free) {
+size_t cache_free_up_memory(Cache cache) {
 
   if (cache == NULL)
     return -1;
@@ -261,9 +276,8 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
     return -1;
   }
 
-  int cant = 0;
-
-  while (lru_last_node != NULL && cant < number_to_free) {
+  size_t freed_memory = 0;
+  while (lru_last_node != NULL) {
 
     pthread_mutex_t* zone_lock = cache_get_zone_mutex(lrunode_get_bucket_number(lru_last_node), cache);
 
@@ -286,12 +300,20 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
       if (bucket == hashnode)
         cache->buckets[buck_num] = hashnode_get_next(hashnode);
       hashnode_clean(hashnode);
+
+      freed_memory = hashnode_get_key_size(hashnode) +
+                     hashnode_get_val_size(hashnode);
+
       hashnode_destroy(hashnode);
     
       pthread_mutex_unlock(zone_lock);
+
       cache_stats_evict_counter_inc(cache->stats);
 
-      cant++;
+      PRINT("Memoria liberada calculada: %lu", freed_memory);
+      PRINT("Allocated memory previo a liberar: %lu", cache_stats_get_allocated_memory(cache->stats));
+      cache_stats_allocated_memory_free(cache->stats, freed_memory);
+      PRINT("Allocated memory luego de liberar: %lu", cache_stats_get_allocated_memory(cache->stats));
 
       PRINT("Expulse un nodo del bucket numero %i.", buck_num);
 
@@ -301,10 +323,17 @@ int cache_free_up_memory(Cache cache, int number_to_free) {
   }
   
   lru_queue_unlock(cache->queue);
-  return cant;
+
+  return freed_memory;
 
 }
 
+
+CacheStats cache_get_cstats(Cache cache) {
+  if (cache != NULL) 
+    return cache->stats;
+  return NULL;
+}
 
 void cache_destroy(Cache cache) { 
 

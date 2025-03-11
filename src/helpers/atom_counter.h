@@ -15,6 +15,10 @@ int atom_counter_inc(AtomCounter counter);
 
 int atom_counter_dec(AtomCounter counter);
 
+int atom_counter_add(AtomCounter counter, Counter n);
+
+int atom_counter_drop(AtomCounter counter, Counter n);
+
 int atom_counter_destroy(AtomCounter counter);
 
 #endif // __ATOMIC_COUNTER_H__
