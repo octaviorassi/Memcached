@@ -6,7 +6,7 @@ struct AtomCounter {
 
     Counter counter;
 
-    pthread_mutex_t lock;
+    pthread_rwlock_t lock;
     
 };
 
@@ -20,7 +20,7 @@ AtomCounter atom_counter_create(unsigned int initial_value) {
 
     atom_counter->counter = initial_value;
     
-    if (pthread_mutex_init(&atom_counter->lock, NULL) != 0) {
+    if (pthread_rwlock_init(&atom_counter->lock, NULL) != 0) {
         free(atom_counter);
         return NULL;
     }
@@ -35,11 +35,11 @@ Counter atom_counter_get(AtomCounter counter) {
     if (counter == NULL)
         return 0;
     
-    pthread_mutex_lock(&counter->lock);
+    pthread_rwlock_rdlock(&counter->lock);
 
     Counter count = counter->counter;
 
-    pthread_mutex_unlock(&counter->lock);
+    pthread_rwlock_unlock(&counter->lock);
 
     return count;
     
@@ -51,11 +51,11 @@ int atom_counter_inc(AtomCounter counter) {
     if (counter == NULL)
         return -1;
     
-    pthread_mutex_lock(&counter->lock);
+    pthread_rwlock_wrlock(&counter->lock);
 
     counter->counter++;
 
-    pthread_mutex_unlock(&counter->lock);
+    pthread_rwlock_unlock(&counter->lock);
 
     return 0;
 
@@ -67,12 +67,12 @@ int atom_counter_dec(AtomCounter counter) {
     if (counter == NULL)
         return -1;
     
-    pthread_mutex_lock(&counter->lock);
+    pthread_rwlock_wrlock(&counter->lock);
 
     if (counter->counter > 0)
         counter->counter--;
 
-    pthread_mutex_unlock(&counter->lock);
+    pthread_rwlock_unlock(&counter->lock);
 
     return 0;
 
@@ -84,11 +84,11 @@ int atom_counter_add(AtomCounter counter, Counter n) {
     if (counter == NULL)
         return -1;
 
-    pthread_mutex_lock(&counter->lock);
+    pthread_rwlock_wrlock(&counter->lock);
 
     counter->counter += n;
 
-    pthread_mutex_unlock(&counter->lock);
+    pthread_rwlock_unlock(&counter->lock);
 
     return 0;
 
@@ -100,14 +100,14 @@ int atom_counter_drop(AtomCounter counter, Counter n) {
     if (counter == NULL)
         return -1;
 
-    pthread_mutex_lock(&counter->lock);
+    pthread_rwlock_wrlock(&counter->lock);
     
     if (counter->counter > n)
         counter->counter -= n;
     else
         counter->counter = 0;
 
-    pthread_mutex_unlock(&counter->lock);
+    pthread_rwlock_unlock(&counter->lock);
 
     return 0;
 
@@ -119,7 +119,7 @@ int atom_counter_destroy(AtomCounter counter) {
     if (counter == NULL)
         return -1;
 
-    pthread_mutex_destroy(&counter->lock);    
+    pthread_rwlock_destroy(&counter->lock);    
 
     free(counter);
 
