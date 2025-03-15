@@ -5,16 +5,21 @@
 
 #define DEFAULT_PORT 889
 
-
+/**
+ *  @brief Imprime en pantalla la forma de ejecutar el server, indicando sus banderas posibles.
+ */
 static void show_usage() {
 
   printf("Usage: ./server [options]\n");
   printf("Options:\n");
-  printf("  -p, --port <port_number>      Set the port number in which the server is running.\n");
+  printf("  -p, --port <port_number>      Set the port number in which the server will run.\n");
   printf("  -m, --memory  <memory_limit>  Set the memory limit of the server.\n");
   printf("  -t, --threads <num_threads>   Set the number of threads of the server.\n");
 }
 
+/**
+ *  @brief Chequea si el usuario ha solicitado ayuda para ejecutar el servidor mediante la bandera `--help`.
+ */
 static int check_for_usage(int argc, char** argv) {
   
   for (int i = 0 ; i < argc ; i++)
@@ -23,6 +28,11 @@ static int check_for_usage(int argc, char** argv) {
   return 0;
 }
 
+/**
+ *  @brief Determina si la cadena ingresada se corresponde con un numero entero positivo.
+ * 
+ *  @return 1 si lo es, 0 si no.
+ */
 static int is_positive_integer(char* s) {
 
   for (int i = 0 ; s[i] != '\0' ; i++) 
@@ -33,12 +43,13 @@ static int is_positive_integer(char* s) {
 
 int parse_arguments(int argc, char** argv, Args* args) {
 
+  // Chequeamos si el usuario solicito ayuda para el uso del programa
   if (check_for_usage(argc, argv)) {
     show_usage();
     return 1;
   }
 
-  // Seteamos a defaults
+  // Definimos los valores predeterminados.
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
   unsigned long  total_ram = pages * page_size;
@@ -47,6 +58,7 @@ int parse_arguments(int argc, char** argv, Args* args) {
   args->num_threads = sysconf(_SC_NPROCESSORS_ONLN);
   args->port = DEFAULT_PORT;
 
+  // Parseamos buscando cada posible bandera y realizando chequeos
   for (int i = 1 ; i < argc ; i++) {
 
     if (strcmp("-p", argv[i]) == 0 || strcmp("--port", argv[i]) == 0) {
@@ -93,6 +105,7 @@ Socket create_server_socket(int port) {
   
   Socket server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
+  // ? Que tan relevante es hacer esto?
   int yes = 1;
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
 
@@ -112,10 +125,11 @@ Socket create_server_socket(int port) {
 int set_memory_limit(unsigned long memory_limit){
 
   struct rlimit rlim = {memory_limit, memory_limit};
-  setrlimit(RLIMIT_DATA, &rlim);
 
-  return 1;
+  return setrlimit(RLIMIT_DATA, &rlim);
+
 }
+
 
 
 void exec_server(char* program, Socket socket, int threads) {
