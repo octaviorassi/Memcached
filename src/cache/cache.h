@@ -7,7 +7,13 @@
 
 
 // Macro para debugging global
-#define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
+#define DEBUG 0
+#if DEBUG == 1
+    #define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
+#else
+    #define PRINT(fmt, ...) ((void)0) // Expands to nothing when DEBUG is not 1
+#endif
+
 
 // Hash default
 unsigned long kr_hash(char* key, size_t size);
@@ -24,6 +30,7 @@ typedef unsigned long (*HashFunction)(void* , size_t);
  *  @return Un puntero a la cache creada.
  */
 Cache cache_create(HashFunction hash);
+
 
 /**
  *  @brief Busca el valor asociado a una clave en la cache.
@@ -72,6 +79,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache);
  *  @return Un reporte con los contadores para cada operacion realizada por la cache.
  */
 StatsReport cache_report(Cache cache);
+
 
 /**
  *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 

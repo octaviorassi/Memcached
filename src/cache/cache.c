@@ -2,18 +2,20 @@
 #include <pthread.h>
 #include <string.h>
 #include "cache.h"
+#include "../hashmap/hash.h"
 #include "../hashmap/hashnode.h"
 #include "../lru/lru.h"
 #include "../lru/lrunode.h"
 
 #define N_LOCKS 10
 #define N_BUCKETS 10 * N_LOCKS
+#define DEBUG 0
 
 
 struct Cache {
 
   // Hash
-  HashFunction        hash_function;
+  HashFunction        hash_function; // ? tiene sentido dar la opcion de pasarlo por argumento?
     
   HashNode            buckets[N_BUCKETS];
   int                 n_buckets;
@@ -34,20 +36,6 @@ static int hashmap_init(HashFunction hash, Cache cache);
 static int hashmap_destroy(Cache cache);
 static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
 static pthread_rwlock_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
-
-
-/* Funcion de hash de K&R */
-
-unsigned long kr_hash(char* key, size_t size) {
-	
-  unsigned long hashval;
-  unsigned long i;
-
-  for (i = 0, hashval = 0 ; i < size ; ++i, key++)
-    hashval = *key + 31 * hashval;
-  
-  return hashval;
-}
 
 
 /* Interfaz de la Cache */
@@ -119,7 +107,6 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache) {
 
   lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
 
-  // Devolvemos el lock
   pthread_rwlock_unlock(lock);
 
   cache_stats_get_counter_inc(cache->stats);
@@ -162,8 +149,10 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
     cache_stats_allocated_memory_add(cache->stats, val_size);
 
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
+    
     pthread_rwlock_unlock(lock);
     return 0;
+
   }
 
   // La clave no estaba en la cache, la insertamos.
@@ -192,11 +181,11 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   pthread_rwlock_unlock(lock);
 
   cache_stats_key_counter_inc(cache->stats);
+  
   PRINT("key_size, val_size, sum: %lu - %lu - %lu", key_size, val_size, key_size + val_size);
   PRINT("Allocated memory pre-put: %lu", cache_stats_get_allocated_memory(cache->stats));
   cache_stats_allocated_memory_add(cache->stats, key_size + val_size);
   PRINT("Allocated memory post-put: %lu", cache_stats_get_allocated_memory(cache->stats));
-
 
   return 0;
 
@@ -222,6 +211,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
   // Si la clave no pertenecia a la cache, devolvemos el lock y retornamos.
+  // ! Deberia sumar al contador de delete incluso si no se hizo la operacion, para ser consistente con el contador de put/get que siempre aumentan
   if (node == NULL) {
     pthread_rwlock_unlock(lock);
     return 1; 
