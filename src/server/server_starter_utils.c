@@ -1,8 +1,10 @@
-#include "server_starter_utils.h"
-
 #include <string.h>
 #include <ctype.h>
 
+#include "server_starter_utils.h"
+#include "../helpers/quit.h"
+
+#define BACKLOG_SIZE 100
 #define DEFAULT_PORT 889
 
 /**
@@ -18,20 +20,23 @@ static void show_usage() {
 }
 
 /**
- *  @brief Chequea si el usuario ha solicitado ayuda para ejecutar el servidor mediante la bandera `--help`.
+ *  @brief Chequea si el usuario ha solicitado ayuda para ejecutar el servidor mediante la bandera `--help` o `-h`.
+ *  @param [in] argc Arreglo Cantidad de argumentos leidos al ejecutarse el programa.
+ *  @param [in] argv Array de argumentos leidos.
+ *  @return Devuelve 1 si se solicito ayuda y 0 en caso contrario.
  */
 static int check_for_usage(int argc, char** argv) {
   
   for (int i = 0 ; i < argc ; i++)
-    if (strcmp(argv[i], "--help") == 0) return 1;
+    if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) return 1;
   
   return 0;
 }
 
 /**
  *  @brief Determina si la cadena ingresada se corresponde con un numero entero positivo.
- * 
- *  @return 1 si lo es, 0 si no.
+ *  @param [in] s Cadena para la cual queremos analizar si su contenido es un entero positivo. 
+ *  @return 1 si es un entero positivo, 0 si no.
  */
 static int is_positive_integer(char* s) {
 
@@ -49,7 +54,7 @@ int parse_arguments(int argc, char** argv, Args* args) {
     return 1;
   }
 
-  // Definimos los valores predeterminados.
+  // Definimos los valores predeterminados del server
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
   unsigned long  total_ram = pages * page_size;
@@ -101,13 +106,15 @@ int parse_arguments(int argc, char** argv, Args* args) {
 }
 
 
-Socket create_server_socket(int port) {
+int create_server_socket(int port) {
   
-  Socket server_socket = socket(AF_INET, SOCK_STREAM, 0);
+  int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+  if (server_socket < 0)
+    quit("Error: failed to create socket");
 
-  // ? Que tan relevante es hacer esto?
   int yes = 1;
-  setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
+  if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) < 0)
+    quit("Error: failed to set socket options");
 
   struct sockaddr_in server_saddr;
   server_saddr.sin_family = AF_INET;
@@ -115,29 +122,33 @@ Socket create_server_socket(int port) {
   server_saddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
   // Lo bindemos al puerto que nos pasaron
-  bind(server_socket, (struct sockaddr*) &server_saddr, sizeof server_saddr);
-  listen(server_socket, 100);
+  if (bind(server_socket, (struct sockaddr*) &server_saddr, sizeof server_saddr) < 0)
+    quit("Error: failed to bind socket.");
+  
+  // Ponemos al socket en modo escucha
+  if (listen(server_socket, BACKLOG_SIZE) < 0)
+    quit("Error: failed to set the socket to listen mode");
 
   return server_socket;
 }
 
 
-int set_memory_limit(unsigned long memory_limit){
+void set_memory_limit(unsigned long memory_limit){
 
   struct rlimit rlim = {memory_limit, memory_limit};
 
-  return setrlimit(RLIMIT_DATA, &rlim);
-
+  if (setrlimit(RLIMIT_DATA, &rlim) < 0)
+    quit("Error: failed to set memory limit.");
 }
 
 
-
-void exec_server(char* program, Socket socket, int threads) {
+void exec_server(char* program, int socket, int threads) {
 
   char socket_buffer[100];
   char threads_buffer[100];
   sprintf(socket_buffer, "%d", socket);
   sprintf(threads_buffer, "%d", threads);
 
-  execl(program, program, socket_buffer, threads_buffer, NULL);
+  if (execl(program, program, socket_buffer, threads_buffer, NULL) < 0)
+    quit("Error: failed to exec the cache server.");
 }

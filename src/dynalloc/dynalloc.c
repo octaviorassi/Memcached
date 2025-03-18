@@ -4,7 +4,7 @@
 #include "dynalloc.h"
 #include "../cache/cache.h"
 
-#define DYNALLOC_FAIL_RATE 50
+#define DYNALLOC_FAIL_RATE 0
 #define MAX_ATTEMPTS 2
 
 extern Cache global_cache;
