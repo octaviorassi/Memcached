@@ -20,9 +20,8 @@
 
 %% @doc Determina si el alias para un PID ya ha sido registrado previamente.
 %% @param PidAlias el alias cuyo registro queremos chequear.
-%% @return `no` si no estaba registrado, `si` en caso contrario.
+%% @return no si no estaba registrado, si en caso contrario.
 -spec is_registered(atom()) -> no | yes.
-%% 
 is_registered(PidAlias) ->
   case whereis(PidAlias) of
     undefined -> no;
@@ -32,7 +31,7 @@ is_registered(PidAlias) ->
 
 
 %% @doc Finaliza la ejecucion del cliente y des-registra al alias cliente.
-%% @return `notExistingClient` si no se habia lanzado un cliente aun, o `clientClosed` si se logra efectivamente finalizar la conexion.
+%% @return notExistingClient si no se habia lanzado un cliente aun, o clientClosed si se logra efectivamente finalizar la conexion.
 -spec quit() -> notExistingClient | clientClosed.
 quit() ->
 
@@ -183,7 +182,7 @@ get_server(Key, ServerMap) ->
 
 %% @doc Cierra la conexion con cada uno de los sockets de la lista de sockets objetivo.
 %% @param ServerSockets La lista de sockets con los cuales queremos terminar la conexion.
-%% @return El atom `ok`.
+%% @return El atom ok.
 -spec close_server_sockets([gen_tcp:socket()]) -> ok.
 close_server_sockets(ServerSockets) ->
   lists:foreach(fun gen_tcp:close/1, ServerSockets).
@@ -199,7 +198,7 @@ handle_ok(_, stats) -> todo;
 handle_ok(_, _) -> ok. 
 
 
-%% @doc Dado un `request` genera la tupla cuyos elementos son los campos del record `request` en el mismo orden.
+%% @doc Dado un request genera la tupla cuyos elementos son los campos del record request en el mismo orden.
 %% @param Request El request a desarmar.
 %% @return La tupla con los campos del request objetivo.
 -spec request_to_tuple(request()) -> {atom(), term(), term(), pid()}.
@@ -226,10 +225,10 @@ handle_server_error_target(Request) ->
 
 
 %! REVISAR ESTA DOCUMENTACION.
-%% @doc Dado el socket de un servidor, la estructura con la informacion de los servidores, y un `request`, lee la respuesta del servidor al request. Si es un error, suponemos que el servidor ha caido y se rebalancea los servers. En todos los casos, dependiendo de la respuesta del servidor, se retorna el mensaje de error correspondiente o, si se recibio un OK, se lee la respuesta correspondiente y se la retorna junto con su objetivo.
+%% @doc Dado el socket de un servidor, la estructura con la informacion de los servidores, y un request, lee la respuesta del servidor al request. Si es un error, suponemos que el servidor ha caido y se rebalancea los servers. En todos los casos, dependiendo de la respuesta del servidor, se retorna el mensaje de error correspondiente o, si se recibio un OK, se lee la respuesta correspondiente y se la retorna junto con su objetivo.
 %% @param ServerSocket El socket del servidor del cual esperamos respuesta.
 %% @param ServerMap La estructura con informacion de los servidores corriendo.
-%% @param Request El `request` para el cual esperamos respuesta.
+%% @param Request El request para el cual esperamos respuesta.
 %% @return Una tupla con la respuesta, la estructura con la informacion de los servidores actualizada, y el target de la respuesta.
 -spec handle_response(gen_tcp:socket(), server_map(), request()) -> {term(), server_map(), pid()}.
 handle_response(ServerSocket, ServerMap, Request) ->
@@ -253,6 +252,8 @@ handle_response(ServerSocket, ServerMap, Request) ->
   Target = 
     case Command of 
       serverError -> element(1, handle_server_error_target(Request));
+      % aca obtiene el primer elemento de la tupla handle_server_error_target(Request),
+      % pero esa expresion nunca evalua a una tupla, evalua a un atom o a un pid, entonces explota porque element no tipa
       _           -> Request#request.pid
     end,
 
