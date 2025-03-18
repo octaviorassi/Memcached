@@ -4,10 +4,38 @@
 #include "../cache/cache.h"
 
 #define GREEN   "\x1b[32m"
-#define RESET   "\x1b[0m"
 #define RED     "\x1b[31m"
+#define ORANGE  "\x1b[38;5;214m"
+#define BLUE    "\x1b[94m"
+
+#define RESET   "\x1b[0m"
 
 Cache global_cache;
+
+static void print_error_msg(int thread_number) {
+  printf(RED "[Thread %d] " RESET, thread_number);
+  printf("Error en socket\n");
+}
+
+static void print_waiting_msg(int thread_number) {
+  printf(GREEN "[Thread %d] " RESET, thread_number); 
+  printf("Waiting for events\n");
+}
+
+static void print_accepted_msg(int thread_number) {
+  printf(ORANGE "[Thread %d] " RESET, thread_number); 
+  printf("Accepting client\n");
+}
+
+static void print_parsing_msg(int thread_number) {
+  printf(BLUE "[Thread %d] " RESET, thread_number); 
+  printf("Parsing request\n");
+}
+
+static void print_handling_msg(int thread_number) {
+  printf(BLUE "[Thread %d] " RESET, thread_number); 
+  printf("Handling request\n");
+}
 
 /**
  *  @brief Es la funcion con la que se lanza a cada uno de los threads que responden pedidos por el servidor. 
@@ -36,18 +64,14 @@ void* working_thread(void* thread_args) {
 
   while(1) { 
 
-    printf(GREEN "[Thread %d] " RESET, thread_number); 
-    printf("Wating for events\n");
+    print_waiting_msg(thread_number);
     if (epoll_wait(server_epoll, &event, 1, -1) < 0)
       quit("[Error] EPOLL_WAIT");
 
-    // Recuperamos el puntero del struct epoll_event con informacion del cliente y el event que desperto al thread. 
     ClientData* event_data = (ClientData*) event.data.ptr;
-    int events = event.events;
     
-    // todo: emprolijar
-    if (events & EPOLLERR || events & EPOLLHUP || events & EPOLLRDHUP) {
-      printf("[Thread %d] Error en socket\n", thread_number);
+    if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+      print_error_msg(thread_number);
       epoll_ctl(server_epoll, EPOLL_CTL_DEL, event_data->socket, NULL);
       close(event_data->socket);
     }
@@ -56,39 +80,35 @@ void* working_thread(void* thread_args) {
     else if (event_data->socket == server_socket) { // Alguien se quiere conectar
       
       int new_client_socket = accept(server_socket, NULL, NULL);
-      printf("[Thread %d] Acepting client\n", thread_number);
+      print_accepted_msg(thread_number);
 
-      // Creamos data para el nuevo cliente
+      // Creamos el epoll_event del cliente y lo cargamos al epoll
       ClientData* new_client_data = create_new_client_data(new_client_socket);
+      construct_new_client_epoll(server_epoll, new_client_data);
 
-      // Cargamos su epoll_event
-      struct epoll_event new_event;
-      new_event.data.ptr = new_client_data;
-      new_event.events = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
-
-      // Lo cargamos al epoll
-      epoll_ctl(server_epoll, EPOLL_CTL_ADD, new_client_socket, &new_event);
-
-      //? Si el socket_server no esta en ONESHOT, no lo tengo que agregar
+      // Reconstruimos el evento de epoll del servidor
       event.events = EPOLLIN | EPOLLONESHOT;
       epoll_ctl(server_epoll, EPOLL_CTL_MOD, server_socket, &event);
+
     }
     
     else { // Es un cliente escribiendo
 
-      printf("[Thread %d] Parsing request\n", thread_number);
+      print_parsing_msg(thread_number);
       parse_request(event_data);
 
-      if(event_data->parsing_stage == PARSING_FINISHED) {
-        printf("[Thread %d] Handling request\n", thread_number);
+      if (event_data->parsing_stage == PARSING_FINISHED) {
+        print_handling_msg(thread_number);
         handle_request(event_data);
         reset_client_data(event_data);
       }
       
-      reconstruct_client_epoll(server_epoll, &event, event_data); 
+      reconstruct_client_epoll(server_epoll, &event, event_data);
+      
     }
   }
 }
+
  /**
   *   @brief Recibe la informacion del servidor (file descriptor de la instancia epoll, file descriptor del socket del servidor, y cantidad de threads) y lanza los threads trabajadores correspondientes, comenzando asi el funcionamiento del servidor.
   * 

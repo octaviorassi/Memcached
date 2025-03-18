@@ -150,7 +150,6 @@ void handle_request(ClientData* cdata) {
 
   operations++;
 
-
   char command;
 
   switch (cdata->command) {
@@ -270,12 +269,20 @@ int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, ClientData* c
   ev->events = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
   ev->data.ptr = cdata;
 
-  int epoll_status = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, cdata->socket, ev);
-
-  // ! Aca habia un quit antes, pero me parecio mas apropiado retornar el epoll_status en vez de quittear directamente.
-  return epoll_status;
+  return epoll_ctl(epoll_fd, EPOLL_CTL_MOD, cdata->socket, ev);
 
 } 
+
+int construct_new_client_epoll(int epoll_fd, ClientData* cdata) {
+
+  struct epoll_event ev;
+
+  ev.events   = EPOLLIN | EPOLLRDHUP | EPOLLONESHOT;
+  ev.data.ptr = cdata;
+
+  return epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cdata->socket, &ev);
+
+}
 
 
 ClientData* create_new_client_data(int client_socket) {
