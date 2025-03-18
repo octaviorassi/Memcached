@@ -42,7 +42,7 @@ void* working_thread(void* thread_args) {
       quit("[Error] EPOLL_WAIT");
 
     // Recuperamos el puntero del struct epoll_event con informacion del cliente y el event que desperto al thread. 
-    Data* event_data = (Data*) event.data.ptr;
+    ClientData* event_data = (ClientData*) event.data.ptr;
     int events = event.events;
     
     // todo: emprolijar
@@ -59,7 +59,7 @@ void* working_thread(void* thread_args) {
       printf("[Thread %d] Acepting client\n", thread_number);
 
       // Creamos data para el nuevo cliente
-      Data* new_client_data = create_new_client_data(new_client_socket);
+      ClientData* new_client_data = create_new_client_data(new_client_socket);
 
       // Cargamos su epoll_event
       struct epoll_event new_event;
@@ -102,7 +102,7 @@ void start_server(ServerArgs* server_args) {
   // thread_args.hash = server_args->hash;
 
   // El primer evento que controlamos es el de EPOLLIN al socket del servidor, que representa un intento de conexion. Solo cargamos el campo de socket, pues la informacion de parseo no aplica a este evento.
-  Data server_data;
+  ClientData server_data;
   server_data.socket = server_args->server_socket; 
 
   struct epoll_event event;

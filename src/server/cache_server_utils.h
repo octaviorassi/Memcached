@@ -51,7 +51,7 @@ typedef struct {
   int parsing_index;
   ParsingStage parsing_stage;
 
-} Data;
+} ClientData;
 
 typedef enum {
 
@@ -86,7 +86,7 @@ typedef struct {
 
 } ServerArgs;
 
-Data* create_new_client_data(int socket);
+ClientData* create_new_client_data(int socket);
 
 /**
  *  @brief Imprime el mensaje `error` explicando el valor de `errno` y aborta la ejecucion generando un core dump al invocar a `abort()`.
@@ -105,7 +105,7 @@ void quit(char* error);
  *  
  *  @return La cantidad de bytes efectivamente leidos, o -1 si se produjo un error.
  */
-ssize_t recv_socket(int socket, char* message_buffer, int size, Data* data);
+ssize_t recv_socket(int socket, char* message_buffer, int size, ClientData* data);
 
 
 /**
@@ -124,7 +124,7 @@ ssize_t send_socket(int socket, char* message, int size);
  * 
  *  @param[out] data Puntero a la estructura con la informacion del cliente que es actualizada de acuerdo a la informacion parseada.
  */
-void parse_request(Data* data);
+void parse_request(ClientData* data);
 
 
 /**
@@ -132,7 +132,7 @@ void parse_request(Data* data);
  * 
  *  @param data Puntero a la estructura con informacion del cliente.
  */
-void handle_request(Data* data);
+void handle_request(ClientData* data);
 
 
 /**
@@ -140,7 +140,7 @@ void handle_request(Data* data);
  * 
  *  @param[out] data Puntero a la estructura de informacion del cliente a restablecer.
  */
-void reset_client_data(Data* data);
+void reset_client_data(ClientData* data);
 
 /**
  *  @brief Reconstruye el epoll_event asociado al cliente cuya informacion se almacena en la estructura apuntada por `data`, y carga el evento en la instancia de epoll asociada a `epoll_fd` para su control. 
@@ -151,7 +151,7 @@ void reset_client_data(Data* data);
  * 
  *  @return 0 si la manipulacion de la instancia de epoll es exitosa, -1 si no.
  */
-int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, Data* data);
+int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, ClientData* data);
 
 /**
  *  @brief Crea e inicializa una nueva estructura de informacion del cliente con el socket de cliente establecido a `client_socket`.
@@ -160,7 +160,7 @@ int reconstruct_client_epoll(int epoll_fd, struct epoll_event* ev, Data* data);
  * 
  *  @return Un puntero a la estructura creada e inicializada.
  */
-Data* create_new_client_data(int client_socket);
+ClientData* create_new_client_data(int client_socket);
 
 
 #endif // __CACHE_SERVER_UTILS_H__
