@@ -20,9 +20,21 @@ typedef struct LRUQueue* LRUQueue;
 LRUQueue lru_queue_create();
 
 
+/**
+ *  @brief Lockea la LRUQueue objetivo.
+ *  @param q La LRUQueue a lockear.
+ *  
+ *  @return 0 en caso exitoso, -1 si el puntero es NULL, un codigo de error en otro caso.
+ */
 int lru_queue_lock(LRUQueue q);
 
 
+/**
+ *  @brief Libera el lock de la LRUQueue objetivo.
+ *  @param q La LRUQueue cuyo lock queremos liberar.
+ *  
+ *  @return 0 en caso exitoso, -1 si el puntero es NULL, un codigo de error en otro caso.
+ */
 int lru_queue_unlock(LRUQueue q);
 
 
