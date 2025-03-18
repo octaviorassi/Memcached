@@ -3,7 +3,7 @@
 
 #include "../helpers/atom_counter.h"
 
-#define STATS_COUNT 5 // Es la cantidad de estadisticos que reportamos.
+#define STATS_COUNT 6 // Es la cantidad de estadisticos que reportamos.
 
 typedef struct CacheStats* CacheStats;
 
