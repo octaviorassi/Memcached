@@ -54,6 +54,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache);
  *  @param val El valor.
  *  @param val_size El tamaño del valor.
  *  @param cache La cache objetivo.
+ * 
  *  @return 0 en caso de exito, -1 si se produjo un error. 
  */
 int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cache);
