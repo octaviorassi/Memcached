@@ -1,8 +1,6 @@
 #ifndef __RESULTS_H__
 #define __RESULTS_H__
 
-// ! ????? Si pongo el struct en el .h, tiene sentido hacerle toda una interfaz igual como si fuera opaco?
-
 typedef enum {
     OK,     
     ERROR,
@@ -10,13 +8,13 @@ typedef enum {
 } Status;
 
 typedef struct LookupResult {
+
     void*   ptr;
     size_t size;
     
     Status  status;
+    
 } LookupResult;
-
-// !? Deberia exportar el enum para que el usuario pueda chequearlo o hago un check_status que tome un lookup result
 
 /// @brief Devuelve un LookupResult con el valor objetivo y status OK.
 LookupResult create_ok_lookup_result(void* ptr, size_t size);
@@ -38,5 +36,8 @@ int lookup_result_is_miss(LookupResult lr);
 
 /// @brief Devuelve el valor almacenado en el LookupResult.
 void* lookup_result_get_value(LookupResult lr);
+
+/// @brief Devuelve el tamaño del valor almacenado en el LookupResult.
+size_t lookup_result_get_size(LookupResult lr);
 
 #endif // __RESULTS_H__

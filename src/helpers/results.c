@@ -32,3 +32,8 @@ inline int lookup_result_is_miss(LookupResult lr) {
 void* lookup_result_get_value(LookupResult lr) {
     return lr.ptr;
 }
+
+size_t lookup_result_get_size(LookupResult lr) {
+    return lr.size;    
+}
+
