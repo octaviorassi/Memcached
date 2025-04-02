@@ -30,8 +30,6 @@ int main(int argc, char** argv) {
   
   set_memory_limit(args.memory_limit);
 
-  // Bajar privilegios o algo por el estilo
-
   exec_server("./bin/cache_server", server_socket, args.num_threads);
  
   return 0;
