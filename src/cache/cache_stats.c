@@ -106,6 +106,16 @@ StatsReport cache_stats_report(CacheStats cstats) {
 
 }
 
+int stats_report_stringify(StatsReport report, char* buf) {
+
+    if (buf == NULL)
+        return -1;
+
+    return sprintf(buf, "PUTS=%lu DELS=%lu GETS=%lu KEYS=%lu EVICTS=%lu",
+                   report.put, report.del, report.get, report.key, report.evict);
+
+}
+
 
 
 

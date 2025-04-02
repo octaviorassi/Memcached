@@ -4,6 +4,7 @@
 #include "../helpers/atom_counter.h"
 
 #define STATS_COUNT 6 // Es la cantidad de estadisticos que reportamos.
+#define STATS_MESSAGE_LENGTH 256
 
 typedef struct CacheStats* CacheStats;
 
@@ -140,6 +141,16 @@ Counter cache_stats_get_allocated_memory(CacheStats cstats);
  *  @return Un StatsReport con metricas de la cache. 
  */
 StatsReport cache_stats_report(CacheStats cstats);
+
+/**
+ *  @brief Dado un StatsReport genera un string formateado que muestra la informacion obtenida y lo carga en el buffer objetivo.
+ * 
+ *  @param report El StatsReport a convertir en string.
+ *  @param buf    Puntero al buffer donde se cargara el string.
+ * 
+ *  @return La cantidad de caracteres copiados al buffer.
+ */
+int stats_report_stringify(StatsReport report, char* buf);
 
 void cache_stats_show(CacheStats cstats, char* buf);
 
