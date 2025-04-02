@@ -18,85 +18,8 @@
 
 #include "../dynalloc/dynalloc.h"
 #include "../cache/cache.h"
-<<<<<<< HEAD
-
-#define LENGTH 4
-
-// ? Estos structs y demas no deberian ir en .c?
-typedef enum {
-
-  PARSING_COMMAND,
-  PARSING_KEY_LEN,
-  PARSING_KEY,
-  PARSING_VALUE_LEN,
-  PARSING_VALUE,
-  PARSING_FINISHED
-
-} ParsingStage;
-
-
-typedef struct {
-
-  int socket;
-
-  char command;
-  
-  char key_size_buffer[LENGTH]; 
-  int key_size;
-  char* key;
-
-  char value_size_buffer[LENGTH];
-  int value_size;
-  char* value;
-
-  int parsing_index;
-  ParsingStage parsing_stage;
-
-} ClientData;
-
-typedef enum {
-
-  PUT       = 11,
-  DEL       = 12,
-  GET       = 13,
-  STATS     = 21,
-  OKAY      = 101,
-  EINVALID  = 111,
-  ENOTFOUND = 112,
-  EBINARY   = 113,
-  EBIG      = 114,
-  EUNK      = 115
-
-} Command;
-
-typedef struct {
-
-  int server_epoll;
-  int server_socket;
-  int thread_number;
-  // Hash
-
-} ThreadArgs;
-
-typedef struct {
-
-  int server_epoll;
-  int server_socket;
-  int num_threads;
-  Cache cache;
-
-} ServerArgs;
-
-/**
- *  @brief Imprime el mensaje `error` explicando el valor de `errno` y aborta la ejecucion generando un core dump al invocar a `abort()`.
- * 
- *  @param error Mensaje de error explicando el valor de error de errno.
- */
-void quit(char* error);
-=======
 #include "cache_server_models.h"
 #include "../helpers/quit.h"
->>>>>>> a653586d67e33c63c11b30d65678b7609fd3a4d8
 
 /**
  *  @brief Lee hasta `size` bytes del `socket` en `message_buffer` actualizando acordemente el indice de parseo del `ClientData`.
