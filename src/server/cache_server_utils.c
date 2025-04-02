@@ -238,21 +238,26 @@ void handle_request(ClientData* cdata) {
     // Obtengo el reporte de estadisticas.
     StatsReport report = cache_report(global_cache);
 
-    // Creo un buffer donde cargar cada counter
-    size_t buffer_size = sizeof(Counter) * STATS_COUNT;
+    // Creo un buffer donde cargar el mensaje y lo llenamos
+    size_t buffer_size = sizeof(char) * STATS_MESSAGE_LENGTH;
     char report_buffer[buffer_size];
+    char command = STATS;
+
+    int report_len = stats_report_stringify(report, report_buffer);
+
+    char length_buffer[LENGTH];
+    size_t size = ntohl(report_len);
+    memcpy(length_buffer, &size, LENGTH);
 
     // Serializamos el reporte de estadisticas en el buffer y lo enviamos
-    serialize_stats_report(&report, report_buffer);
-    send_socket(cdata->socket, report_buffer, buffer_size);
+    send_socket(cdata->socket, &command, 1);                // Mando STATS 
+    send_socket(cdata->socket, length_buffer, LENGTH);      // Prefijo longitud
+    send_socket(cdata->socket, report_buffer, report_len);  // String del report
 
     break;
   
   }  
 }
-
-
-
 
 void reset_client_data(ClientData* cdata) {
 
