@@ -86,8 +86,6 @@ typedef struct {
 
 } ServerArgs;
 
-ClientData* create_new_client_data(int socket);
-
 /**
  *  @brief Imprime el mensaje `error` explicando el valor de `errno` y aborta la ejecucion generando un core dump al invocar a `abort()`.
  * 
