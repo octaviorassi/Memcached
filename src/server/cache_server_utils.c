@@ -290,3 +290,19 @@ ClientData* create_new_client_data(int client_socket) {
   return new_cdata;
 }
 
+void delete_client_data(ClientData* cdata) {
+
+  if (cdata == NULL)
+    return;
+
+  if (cdata->socket > 0)
+    close(cdata->socket);
+
+  free(cdata);
+
+}
+
+void drop_client(int epoll_fd, ClientData* cdata) {
+  epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cdata->socket, NULL);
+  delete_client_data(cdata);
+}

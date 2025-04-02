@@ -21,19 +21,15 @@ int main(int argc, char** argv) {
 
   if (parse_arguments(argc, argv, &args)) 
     return 1; 
-  
 
   int server_socket = create_server_socket(args.port);
   
   set_memory_limit(args.memory_limit);
 
-<<<<<<< HEAD
-=======
   printf("[Port]    %d\n", args.port);
   printf("[Memory]  %ld Bytes\n", args.memory_limit);
   printf("[Threads] %d\n", args.num_threads);
 
->>>>>>> a653586d67e33c63c11b30d65678b7609fd3a4d8
   exec_server("./bin/cache_server", server_socket, args.num_threads);
  
   return 0;
