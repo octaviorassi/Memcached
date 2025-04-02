@@ -13,8 +13,6 @@ struct LRUQueue {
 
   pthread_mutex_t* lock; 
 
-  int count;  
-
 };
 
 
@@ -74,8 +72,6 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
 
   lrunode_set_next(node, NULL);
 
-  q->count++;
-
   lru_queue_unlock(q);
   
   return node;
@@ -107,8 +103,6 @@ void lru_queue_node_clean(LRUNode node, LRUQueue q) {
 
   lrunode_set_next(prev, next);
   lrunode_set_prev(next, prev);
-
-  q->count--;
 
   LRUNode lr = q->least_recent;
   LRUNode mr = q->most_recent;
@@ -159,12 +153,6 @@ int lru_queue_destroy(LRUQueue q) {
   return 0;
 
 }
-
-
-int lru_queue_get_count(LRUQueue q) { 
-  return q ? q->count : 0;
-}
-
 
 
 /** -----------------------------------

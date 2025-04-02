@@ -261,7 +261,6 @@ size_t cache_free_up_memory(Cache cache) {
 
   // La LRU estaba vacia
   if (lru_last_node == NULL) {
-    PRINT("La LRUQueue estaba vacia. El contador de elementos da: %i", lru_queue_get_count(cache->queue));
     lru_queue_unlock(cache->queue);
     return -1;
   }

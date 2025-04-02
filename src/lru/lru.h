@@ -101,6 +101,4 @@ int lru_queue_delete_node(LRUNode node, LRUQueue q);
  */
 void lru_queue_node_clean(LRUNode node, LRUQueue q);
 
-int lru_queue_get_count(LRUQueue q);
-
 #endif // __LRU_H__
