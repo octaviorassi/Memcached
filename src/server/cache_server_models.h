@@ -19,7 +19,13 @@ typedef enum {
   PUT       = 11,
   DEL       = 12,
   GET       = 13,
-  STATS     = 21,
+  STATS     = 21
+
+} Command;
+
+
+typedef enum {
+
   OKAY      = 101,
   EINVALID  = 111,
   ENOTFOUND = 112,
@@ -27,8 +33,7 @@ typedef enum {
   EBIG      = 114,
   EUNK      = 115
 
-} Command;
-
+} Response;
 
 typedef struct {
 
