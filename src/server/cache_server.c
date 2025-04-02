@@ -2,6 +2,7 @@
 #include "cache_server_utils.h"
 
 #include "../cache/cache.h"
+#include "../helpers/quit.h"
 
 #define GREEN   "\x1b[32m"
 #define RED     "\x1b[31m"
@@ -36,6 +37,8 @@ static void print_handling_msg(int thread_number) {
   printf(BLUE "[Thread %d] " RESET, thread_number); 
   printf("Handling request\n");
 }
+
+
 
 /**
  *  @brief Es la funcion con la que se lanza a cada uno de los threads que responden pedidos por el servidor. 
@@ -72,10 +75,8 @@ void* working_thread(void* thread_args) {
     
     if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
       print_error_msg(thread_number);
-      epoll_ctl(server_epoll, EPOLL_CTL_DEL, event_data->socket, NULL);
-      close(event_data->socket);
+      drop_client(server_epoll, event_data);
     }
-    
 
     else if (event_data->socket == server_socket) { // Alguien se quiere conectar
       
@@ -94,16 +95,32 @@ void* working_thread(void* thread_args) {
     
     else { // Es un cliente escribiendo
 
+      // Parseamos su request
       print_parsing_msg(thread_number);
-      parse_request(event_data);
 
-      if (event_data->parsing_stage == PARSING_FINISHED) {
-        print_handling_msg(thread_number);
-        handle_request(event_data);
-        reset_client_data(event_data);
+      // Si fracaso el parseo, droppeamos al cliente 
+      if (parse_request(event_data) < 0) {
+        print_error_msg(thread_number);
+        drop_client(server_epoll, event_data);
       }
+
+      // Si el parseo termino, ejecutamos su pedido
+      else if (event_data->parsing_stage == PARSING_FINISHED) {
+        print_handling_msg(thread_number);
+
+        // Si fracaso el envio de la respuesta al cliente, lo droppeamos
+        if (handle_request(event_data) < 0) {
+          print_error_msg(thread_number);
+          drop_client(server_epoll, event_data);
+        }
+
+        // Si no, reiniciamos sus buffers y reconstruimos su evento en el epoll.
+        reset_client_data(event_data);
       
-      reconstruct_client_epoll(server_epoll, &event, event_data);
+        reconstruct_client_epoll(server_epoll, &event, event_data);
+
+      }
+      // Caso contrario, continua la proxima iteracion.
       
     }
   }

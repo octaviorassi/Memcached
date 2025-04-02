@@ -7,24 +7,24 @@
 
 int operations = 0;
 
-void quit(char* error) {
-  // ! perror(msg) deberia contener en msg una explicacion del valor de error setteado en errno. aca faltaria haber setteado el errno?
-  perror(error);
-  abort();
-}
-
 
 ssize_t recv_socket(int socket, char* message_buffer, int size, ClientData* cdata) {
 
   ssize_t total_bytes_received = 0;
   ssize_t bytes_received;
 
-  while (bytes_received > 0 && total_bytes_received < size) {
+  do {
 
     bytes_received = recv(socket, message_buffer + total_bytes_received,
                           size - total_bytes_received, 0);
 
-    total_bytes_received+= bytes_received;
+    total_bytes_received += bytes_received;
+
+  } while (bytes_received > 0 && total_bytes_received < size);
+
+  if (bytes_received < 0) {
+    perror("Error: failed to call recv bytes.");;
+    return -1;
   }
 
   cdata->parsing_index += total_bytes_received;
@@ -38,34 +38,36 @@ ssize_t send_socket(int socket, char* message, int size) {
   ssize_t total_bytes_sent = 0; 
   ssize_t bytes_sent;
 
-  while (total_bytes_sent < size) {
+
+  do {
 
     bytes_sent = send(socket, message + total_bytes_sent,
                       size - total_bytes_sent, 0);
 
-    // ! Deberia retornar -1 aca tambien no? Y settear errno si voy a invocar a quit()
-    if (bytes_sent == -1)
-      quit("[Error] send");
-
     total_bytes_sent += bytes_sent;
 
+  } while (bytes_sent > 0 && total_bytes_sent < size);
+
+  if (bytes_sent < 0) {
+    perror("Error: failed to call send bytes.");;
+    return -1;
   }
 
   return total_bytes_sent;
 
 }
 
-
-void parse_request(ClientData* cdata) {
+// ! cambiar la documentacion para reflear el nuevo return type
+int parse_request(ClientData* cdata) {
 
   switch (cdata->parsing_stage) {
 
     case PARSING_COMMAND:
       
-      recv_socket(cdata->socket, &cdata->command, 1, cdata); 
+      if (recv_socket(cdata->socket, &cdata->command, 1, cdata) < 0) return -1; 
       
-      // No se termino de parsea comando
-      if (cdata->parsing_index < 1) return; 
+      // No se termino de parsear el comando
+      if (cdata->parsing_index < 1) return 0; 
 
       // Cambio lo siguiente a hacer dependiendo del comando
       cdata->parsing_stage = cdata->command == STATS ?
@@ -75,23 +77,24 @@ void parse_request(ClientData* cdata) {
 
     case PARSING_KEY_LEN:
 
-      recv_socket(cdata->socket, cdata->key_size_buffer + cdata->parsing_index, LENGTH - cdata->parsing_index, cdata);
+      if (recv_socket(cdata->socket, cdata->key_size_buffer +
+                      cdata->parsing_index, LENGTH - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < LENGTH) return;
+      if (cdata->parsing_index < LENGTH) return 0;
 
       cdata->key_size = htonl(*(int*)(cdata->key_size_buffer));
-      cdata->key = dynalloc(cdata->key_size); //!! DYNALLOC
+      cdata->key = dynalloc(cdata->key_size);
       cdata->parsing_stage = PARSING_KEY;
       cdata->parsing_index = 0;
       
-      parse_request(cdata);
+      return parse_request(cdata);
       break;
 
     case PARSING_KEY:
 
-      recv_socket(cdata->socket, cdata->key + cdata->parsing_index, cdata->key_size - cdata->parsing_index, cdata);
+      if (recv_socket(cdata->socket, cdata->key + cdata->parsing_index, cdata->key_size - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < cdata->key_size) return;
+      if (cdata->parsing_index < cdata->key_size) return 0;
 
       cdata->parsing_stage = cdata->command == PUT ? PARSING_VALUE_LEN : PARSING_FINISHED;
       cdata->parsing_index = 0;
@@ -99,9 +102,11 @@ void parse_request(ClientData* cdata) {
 
     case PARSING_VALUE_LEN:
 
-      recv_socket(cdata->socket, cdata->value_size_buffer + cdata->parsing_index, LENGTH - cdata->parsing_index, cdata);
+      if (recv_socket(cdata->socket,
+                      cdata->value_size_buffer + cdata->parsing_index,
+                      LENGTH - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < LENGTH) return;
+      if (cdata->parsing_index < LENGTH) return 0;
 
       cdata->value_size = htonl(*(int*)(cdata->value_size_buffer));
       cdata->value = dynalloc(cdata->value_size);
@@ -111,20 +116,21 @@ void parse_request(ClientData* cdata) {
 
     case PARSING_VALUE:
       
-      recv_socket(cdata->socket, cdata->value + cdata->parsing_index, cdata->value_size - cdata->parsing_index, cdata);
+      if (recv_socket(cdata->socket, cdata->value + cdata->parsing_index,
+                      cdata->value_size - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < cdata->value_size) return;
+      if (cdata->parsing_index < cdata->value_size) return 0;
 
       cdata->parsing_stage = PARSING_FINISHED;
 
       break;
 
     case PARSING_FINISHED: // Imposible que llege hasta aca, lanzamos un error
-      quit("[Error] Switch case PARSING_FINISHED reached");
+      quit("Error: switch case PARSING_FINISHED reached");
       break;
   }
 
-  if (cdata->parsing_stage != PARSING_FINISHED) parse_request(cdata); //? Ver si esto funciona bien
+  if (cdata->parsing_stage != PARSING_FINISHED) return parse_request(cdata); //? Ver si esto funciona bien
 }
 
 
@@ -142,11 +148,11 @@ static void serialize_stats_report(const StatsReport* report, char* buffer) {
   buffer_ptr[2] = ntohl(report->del);
   buffer_ptr[3] = ntohl(report->key);
   buffer_ptr[4] = ntohl(report->evict);
-
+  buffer_ptr[5] = ntohl(report->allocated_memory);
 }
 
 
-void handle_request(ClientData* cdata) {
+int handle_request(ClientData* cdata) {
 
   operations++;
 
@@ -154,21 +160,12 @@ void handle_request(ClientData* cdata) {
 
   switch (cdata->command) {
     case PUT:
-      printf("---------------------\n");
-      printf("PUT Operation %d\n",operations);
-      printf("[KeySize] %d\n", cdata->key_size);
-      for (int i = 0 ; i < cdata->key_size ; i++) printf("%c ", cdata->key[i]);
-      printf("\n");
-      printf("[ValueSize] %d\n", cdata->value_size);
-      for (int i = 0 ; i < cdata->value_size ; i++) printf("%c ", cdata->value[i]);
-      printf("\n");
-
 
       int result = cache_put(cdata->key, cdata->key_size, cdata->value, cdata->value_size, global_cache);
       
       if (result == 0) {
         command = OKAY;
-        send_socket(cdata->socket, &command, 1);
+        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
       } 
 
       else {
@@ -179,56 +176,44 @@ void handle_request(ClientData* cdata) {
   
   case DEL:
       
-      printf("---------------------\n");
-      printf("DEL Operation %d\n", operations);
-      printf("[KeySize] %d\n", cdata->key_size);
-      for (int i = 0 ; i < cdata->key_size ; i++) printf("%c ", cdata->key[i]);
-      printf("\n");
-
-
       result = cache_delete(cdata->key, cdata->key_size, global_cache);
 
       if (result == 0) command = OKAY;
-      else command = ENOTFOUND;
+      else             command = ENOTFOUND;
 
-      send_socket(cdata->socket, &command, 1);
+      if (send_socket(cdata->socket, &command, 1) < 0) return -1;
       
       break;
   
   case GET:
   
-      printf("---------------------\n");
-      printf("GET Operation %d\n", operations);
-      printf("[KeySize] %d\n", cdata->key_size);
-      for (int i = 0 ; i < cdata->key_size ; i++) printf("%c ", cdata->key[i]);
-      printf("\n");
-
       LookupResult l_result = cache_get(cdata->key, cdata->key_size, global_cache);
 
       if (lookup_result_is_ok(l_result)) {
         
-        printf("SIZEEE: %ld\n", l_result.size);
         char command = OKAY;
         char length_buffer[LENGTH];
         size_t size = ntohl(l_result.size);
         memcpy(length_buffer, &size, LENGTH);
 
-        send_socket(cdata->socket, &command, 1);
-        send_socket(cdata->socket, length_buffer, LENGTH);
-        send_socket(cdata->socket, l_result.ptr, l_result.size);
+        // ! ESTO ROMPE LA INTERFAZ DE LOOKUPRESULT :(
+        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+        if (send_socket(cdata->socket, length_buffer, LENGTH) < 0) return -1;
+        if (send_socket(cdata->socket, l_result.ptr, l_result.size) < 0)
+          return -1;
       }
 
-      else if (lookup_result_is_error(l_result)){
+      else if (lookup_result_is_error(l_result)) {
 
         printf("ERROR LOOKUP\n");
         command = ENOTFOUND;
-        send_socket(cdata->socket, &command, 1);
+        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
       }
 
       else {
         printf("MISS LOOKUP\n");
         command = ENOTFOUND;
-        send_socket(cdata->socket, &command, 1);
+        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
       }
       
       break;
@@ -242,7 +227,7 @@ void handle_request(ClientData* cdata) {
     size_t buffer_size = sizeof(char) * STATS_MESSAGE_LENGTH;
     char report_buffer[buffer_size];
     char command = STATS;
-
+  
     int report_len = stats_report_stringify(report, report_buffer);
 
     char length_buffer[LENGTH];

@@ -1,5 +1,7 @@
 # Compiler and flags
 CC = gcc
+ERLC = erlc
+ERL = erl
 CFLAGS = -Isrc -g
 
 SRC_DIR = src
@@ -8,16 +10,24 @@ BIN_DIR = bin
 
 SRC = $(wildcard src/**/*.c)
 SRC := $(filter-out src/app/%.c, $(SRC)) # Saco las pruebas
+ERL_SRC = $(wildcard src/**/*.erl)
 
 OBJS = $(patsubst src/%.c, $(OBJ_DIR)/%.o, $(SRC)) # los objetos
 
 OBJS_SERVER = $(filter-out $(OBJ_DIR)/server/server_starter%.o, $(OBJS)) 
-OBJS_STARTER = $(filter $(OBJ_DIR)/server/server_starter%.o, $(OBJS)) 
+OBJS_STARTER = $(filter $(OBJ_DIR)/server/server_starter%.o, $(OBJS)) $(OBJ_DIR)/helpers/quit.o
 
 SERVER  = $(BIN_DIR)/cache_server
 STARTER = $(BIN_DIR)/server 
+all: server client
+server: $(SERVER) $(STARTER)
 
-all: $(SERVER) $(STARTER) 
+client:
+	@mkdir -p $(BIN_DIR)
+	@$(ERLC) -o $(BIN_DIR) $(ERL_SRC)
+
+run-client:
+	@$(ERL) -pa $(BIN_DIR)
 
 set-bind-privilege:
 	@sudo setcap 'cap_net_bind_service=+ep' $(STARTER)
@@ -38,6 +48,6 @@ $(OBJ_DIR)/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 	
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
-
+	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@echo "All files cleaned!"
 .PHONY: all clean

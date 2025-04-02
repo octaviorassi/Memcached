@@ -18,6 +18,7 @@
 
 #include "../dynalloc/dynalloc.h"
 #include "../cache/cache.h"
+<<<<<<< HEAD
 
 #define LENGTH 4
 
@@ -92,6 +93,10 @@ typedef struct {
  *  @param error Mensaje de error explicando el valor de error de errno.
  */
 void quit(char* error);
+=======
+#include "cache_server_models.h"
+#include "../helpers/quit.h"
+>>>>>>> a653586d67e33c63c11b30d65678b7609fd3a4d8
 
 /**
  *  @brief Lee hasta `size` bytes del `socket` en `message_buffer` actualizando acordemente el indice de parseo del `ClientData`.
@@ -121,16 +126,20 @@ ssize_t send_socket(int socket, char* message, int size);
  *  @brief Parsea el mensaje proveniente del cliente asociado al `data` de acuerdo a su parsing stage. Este parseo siempre es total; en caso de recibirse un mensaje incompleto, la informacion del cliente se actualiza y se vuelve a invocar la funcion recursivamente hasta que se complete el mensaje o se produza un error.
  * 
  *  @param[out] cdata Puntero a la estructura con la informacion del cliente que es actualizada de acuerdo a la informacion parseada.
+ *
+ *  @return 0 si parseo correctamente, -1 si fracaso al recibir bytes del socket.
  */
-void parse_request(ClientData* cdata);
+int parse_request(ClientData* cdata);
 
 
 /**
  *  @brief Ejecuta el comando cargado en la estructura con informacion del cliente apuntada por `data` en su campo `command`.
  * 
  *  @param cdata Puntero a la estructura con informacion del cliente.
+ *
+ *  @return 0 si la ejecucion del pedido es exitosa, -1 si se produjo un error al intentar enviar la respuesta.
  */
-void handle_request(ClientData* cdata);
+int handle_request(ClientData* cdata);
 
 
 /**
@@ -171,6 +180,24 @@ int construct_new_client_epoll(int epoll_fd, ClientData* cdata);
  *  @return Un puntero a la estructura creada e inicializada.
  */
 ClientData* create_new_client_data(int client_socket);
+
+
+/**
+ *  @brief Destruye la estructura de informacion del cliente objetivo.
+ *  
+ *  @param cdata El puntero a la estructura a destruir. 
+ * 
+ */
+void delete_client_data(ClientData* cdata);
+
+/**
+ * @brief Desconecta a un cliente de la instancia epoll y destruye su estructura de cliente asociada.
+ *
+ * @param epoll_fd File descriptor de la instancia de epoll donde se monitoreaba al cliente.
+ * @param[out] cdata Puntero a la estructura del cliente a eliminar. 
+ *
+ */
+void drop_client(int epoll_fd, ClientData* cdata);
 
 
 #endif // __CACHE_SERVER_UTILS_H__

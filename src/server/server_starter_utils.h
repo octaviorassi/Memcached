@@ -17,7 +17,6 @@
 #include <string.h>
 #include <ctype.h>
 
-typedef int Socket;
 
 typedef struct {
 
@@ -48,18 +47,15 @@ int parse_arguments(int argc, char** argv, Args* args);
  * 
  *  @return El file descriptor asociado al socket creado.
  */
-Socket create_server_socket(int port);
+int create_server_socket(int port);
 
 
 /**
  *  @brief Define el tope de memoria disponible para el proceso llamante, setteando tanto el soft como el hard limit a `memory_limit`, medido en bytes.
  * 
  *  @param memory_limit Cantidad de memoria maxima medida en bytes. 
- * 
- *  @return 0 en caso de exito, o -1 si se produjo un error, con `errno` indicandolo.
- * 
  */
-int set_memory_limit(unsigned long memory_limit);
+void set_memory_limit(unsigned long memory_limit);
 
 
 /**
@@ -69,7 +65,7 @@ int set_memory_limit(unsigned long memory_limit);
  *  @param socket  El file descriptor del socket asociado al servidor.
  *  @param threads La cantidad de threads con las que se lanzara el server.
  */
-void exec_server(char* program, Socket socket, int threads);
+void exec_server(char* program, int socket, int threads);
 
 
 #endif // __SERVER_STARTER_UTILS_H__

@@ -209,14 +209,20 @@ request_to_tuple(Request) ->
     Request#request.pid }.
 
 
-%% todo @doc Dado un request.. (todo, no entendi).
+%% @doc Se encarga de generar un termino de respuesta apropiado cuando una request tiene un error. En el caso de que estemos haciendo una operacion PUT, el mensaje tiene que ser la misma request, ya que intentaremos realizar nuevamente la operacion de PUT. En cualquier otro caso, 
+%% @param Request El request para el cual se genero un error del servidor.
+%% @return El termino adecuado dependiendo del tipo de request que estemos tratando.
+-spec handle_server_error_response(request()) -> {atom(), term(), term(), pid()} | enotfound. 
 handle_server_error_response(Request) ->
   case Request#request.command of 
     put -> request_to_tuple(Request);
     _   -> enotfound
   end.
 
-%% todo @doc Dado un request.. (todo, no entendi).
+%% @doc Se encarga de decidir el objetivo a responder cuando una request tiene un error. En el caso de que estemos tratando con una operacion PUT
+%% @param Request El request para el cual se genero un error del servidor.
+%% @return El objetivo a responder dependiendo del tipo de request que estemos tratando.
+-spec handle_server_error_target(request()) -> pid() | client.
 handle_server_error_target(Request) ->
   case Request#request.command of 
     put -> client;
@@ -251,9 +257,7 @@ handle_response(ServerSocket, ServerMap, Request) ->
 
   Target = 
     case Command of 
-      serverError -> element(1, handle_server_error_target(Request));
-      % aca obtiene el primer elemento de la tupla handle_server_error_target(Request),
-      % pero esa expresion nunca evalua a una tupla, evalua a un atom o a un pid, entonces explota porque element no tipa
+      serverError -> handle_server_error_target(Request);
       _           -> Request#request.pid
     end,
 
