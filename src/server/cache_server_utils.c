@@ -89,10 +89,17 @@ int parse_request(ClientData* cdata) {
       if (cdata->parsing_index < LENGTH) return 0;
 
       cdata->key_size = htonl(*(int*)(cdata->key_size_buffer));
-      cdata->key = dynalloc(cdata->key_size);
-      cdata->parsing_stage = PARSING_KEY;
-      cdata->parsing_index = 0;
       
+      cdata->key = dynalloc(cdata->key_size); 
+      if (cdata->key == NULL) {
+        // Si falla la asignacion de memoria, marcamos el comando como EBIG y el stage pasa a ser terminado.
+        cdata->command = EBIG;
+        cdata->parsing_stage = PARSING_FINISHED;
+      }
+      else {
+        cdata->parsing_stage = PARSING_KEY;
+        cdata->parsing_index = 0;
+      }      
       break;
 
     case PARSING_KEY:
@@ -118,9 +125,18 @@ int parse_request(ClientData* cdata) {
       if (cdata->parsing_index < LENGTH) return 0;
 
       cdata->value_size = htonl(*(int*)(cdata->value_size_buffer));
+
       cdata->value = dynalloc(cdata->value_size);
-      cdata->parsing_stage = PARSING_VALUE;
-      cdata->parsing_index = 0;
+      if (cdata->value == NULL) {
+        // Analogo al caso de fallar en key, pero libero la memoria
+        free(cdata->key);
+        cdata->command = EBIG;
+        cdata->parsing_stage = PARSING_FINISHED;
+      }
+      else {
+        cdata->parsing_stage = PARSING_VALUE;
+        cdata->parsing_index = 0;
+      }
       break;
 
     case PARSING_VALUE:
@@ -147,6 +163,8 @@ int parse_request(ClientData* cdata) {
 extern Cache global_cache; //!! ELIMINAR
 
 int handle_request(ClientData* cdata) {
+
+   // En todo momento, si hay un problema con el socket devolvemos -1. Del lado del server, esto hace que se droppee al cliente.
 
   char command;
 
@@ -199,7 +217,7 @@ int handle_request(ClientData* cdata) {
       
       break;
   
-    case STATS: 
+    case STATS: {
       
       // Obtengo el reporte de estadisticas.
       StatsReport report = cache_report(global_cache);
@@ -216,13 +234,24 @@ int handle_request(ClientData* cdata) {
       memcpy(length_buffer, &size, LENGTH);
 
       // Enviamos el comando el mensaje
-      send_socket(cdata->socket, &command, 1);                // Mando STATS 
-      send_socket(cdata->socket, length_buffer, LENGTH);      // Prefijo longitud
+      send_socket(cdata->socket, &command, 1);              // Mando STATS 
+      send_socket(cdata->socket, length_buffer, LENGTH);    // Prefijo longitud
       send_socket(cdata->socket, report_buffer, report_len);  // String del report
 
-    break;
+      break;
+    }
+
+    case EBIG:
+
+      command = EBIG;
+      if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+
+      break;
   
   }  
+
+  return 0;
+
 }
 
 
