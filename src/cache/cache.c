@@ -9,8 +9,6 @@
 
 #define BUCKETS_FACTOR 10
 #define ZONES_FACTOR 2
-#define DEBUG 0
-
 
 struct Cache {
 
@@ -296,6 +294,8 @@ ssize_t cache_free_up_memory(Cache cache) {
 
       freed_memory = hashnode_get_key_size(hashnode) +
                      hashnode_get_val_size(hashnode);
+      
+      cache_stats_allocated_memory_free(cache->stats, freed_memory);
 
       PRINT("Expulsamos al nodo con clave %i del bucket %i", hashnode_get_key(hashnode), buck_num);
 
