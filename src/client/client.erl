@@ -308,7 +308,7 @@ client(ServersTable) ->
           serverError    -> { enotfound, rebalance_servers(ServersTable, ServerSocket), PID };
           <<?ENOTFOUND>> -> { enotfound, ServersTable, PID };
           <<?OK>>        -> 
-            BinaryLength = util:recv_bytes(ServerSocket, 4),
+            BinaryLength = utils:recv_bytes(ServerSocket, 4),
             case BinaryLength of
               serverError            -> { enotfound, rebalance_servers(ServersTable, ServerSocket), PID };
               <<ValueLength:32/big>> ->
