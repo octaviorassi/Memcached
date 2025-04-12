@@ -210,13 +210,8 @@ int handle_request(ClientData* cdata) {
                         lookup_result_get_size(lr)) < 0) return -1;
       }
 
-      else if (lookup_result_is_miss(lr)) {
-        command = ENOTFOUND;
-        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
-      }
-
       else {
-        command = EUNK;
+        command = ENOTFOUND;
         if (send_socket(cdata->socket, &command, 1) < 0) return -1;
       }
       
