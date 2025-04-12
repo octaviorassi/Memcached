@@ -8,6 +8,8 @@
 #define RED     "\x1b[31m"
 #define ORANGE  "\x1b[38;5;214m"
 #define BLUE    "\x1b[94m"
+#define SOFT_RED "\x1b[38;5;210m"
+
 
 #define RESET   "\x1b[0m"
 
@@ -16,24 +18,29 @@ static void print_error_msg(int thread_number) {
   printf("Error en socket\n");
 }
 
+static void print_disconnect_msg(int thread_number) {
+  printf(SOFT_RED "[Thread %d] " RESET, thread_number);
+  printf("Client disconnected.\n");
+}
+
 static void print_waiting_msg(int thread_number) {
   printf(GREEN "[Thread %d] " RESET, thread_number); 
-  printf("Waiting for events\n");
+  printf("Waiting for events.\n");
 }
 
 static void print_accepted_msg(int thread_number) {
   printf(ORANGE "[Thread %d] " RESET, thread_number); 
-  printf("Accepting client\n");
+  printf("Accepting client.\n");
 }
 
 static void print_parsing_msg(int thread_number) {
   printf(BLUE "[Thread %d] " RESET, thread_number); 
-  printf("Parsing request\n");
+  printf("Parsing request.\n");
 }
 
 static void print_handling_msg(int thread_number) {
   printf(BLUE "[Thread %d] " RESET, thread_number); 
-  printf("Handling request\n");
+  printf("Handling request.\n");
 }
 
 
@@ -71,8 +78,13 @@ void* working_thread(void* thread_args) {
 
     ClientData* event_data = (ClientData*) event.data.ptr;
     
-    if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+    if (event.events & EPOLLERR) {
       print_error_msg(thread_number);
+      drop_client(server_epoll, event_data);
+    }
+
+    if (event.events & (EPOLLHUP | EPOLLRDHUP)) {
+      print_disconnect_msg(thread_number);
       drop_client(server_epoll, event_data);
     }
 
