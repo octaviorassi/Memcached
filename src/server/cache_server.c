@@ -83,7 +83,7 @@ void* working_thread(void* thread_args) {
       drop_client(server_epoll, event_data);
     }
 
-    if (event.events & (EPOLLHUP | EPOLLRDHUP)) {
+    else if (event.events & (EPOLLHUP | EPOLLRDHUP)) {
       print_disconnect_msg(thread_number);
       drop_client(server_epoll, event_data);
     }
