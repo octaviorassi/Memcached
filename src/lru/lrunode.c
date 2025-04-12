@@ -17,7 +17,7 @@ struct LRUNode {
 
 LRUNode lrunode_create(Cache cache) {
 
-    LRUNode node = dynalloc(sizeof(struct LRUNode));
+    LRUNode node = dynalloc(sizeof(struct LRUNode), cache);
     if (node == NULL)
         return NULL;
 

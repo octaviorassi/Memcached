@@ -59,7 +59,7 @@ static int command_is_valid(char cmd) {
   return cmd == PUT || cmd == GET || cmd == DEL || cmd == STATS;
 }
 
-int parse_request(ClientData* cdata) {
+int parse_request(ClientData* cdata, Cache cache) {
 
   switch (cdata->parsing_stage) {
 
@@ -90,7 +90,7 @@ int parse_request(ClientData* cdata) {
 
       cdata->key_size = htonl(*(int*)(cdata->key_size_buffer));
       
-      cdata->key = dynalloc(cdata->key_size); 
+      cdata->key = dynalloc(cdata->key_size, cache); 
       if (cdata->key == NULL) {
         // Si falla la asignacion de memoria, marcamos el comando como EBIG y el stage pasa a ser terminado.
         cdata->command = EBIG;
@@ -126,7 +126,7 @@ int parse_request(ClientData* cdata) {
 
       cdata->value_size = htonl(*(int*)(cdata->value_size_buffer));
 
-      cdata->value = dynalloc(cdata->value_size);
+      cdata->value = dynalloc(cdata->value_size, cache);
       if (cdata->value == NULL) {
         // Analogo al caso de fallar en key, pero libero la memoria
         free(cdata->key);
@@ -156,13 +156,11 @@ int parse_request(ClientData* cdata) {
   }
 
   if (cdata->parsing_stage != PARSING_FINISHED)
-    return parse_request(cdata);
+    return parse_request(cdata, cache);
 
 }
 
-extern Cache global_cache; //!! ELIMINAR
-
-int handle_request(ClientData* cdata) {
+int handle_request(ClientData* cdata, Cache cache) {
 
    // En todo momento, si hay un problema con el socket devolvemos -1. Del lado del server, esto hace que se droppee al cliente.
 
@@ -172,7 +170,7 @@ int handle_request(ClientData* cdata) {
 
     case PUT:
 
-      int put_status = cache_put(cdata->key, cdata->key_size, cdata->value, cdata->value_size, global_cache);
+      int put_status = cache_put(cdata->key, cdata->key_size, cdata->value, cdata->value_size, cache);
       
       // Si el put fue exitoso, respondemos con OK, si no, con EUNK
       command = put_status == 0 ? OKAY : EUNK;
@@ -183,7 +181,7 @@ int handle_request(ClientData* cdata) {
   
     case DEL:
       
-      int del_status = cache_delete(cdata->key, cdata->key_size, global_cache);
+      int del_status = cache_delete(cdata->key, cdata->key_size, cache);
 
       command = del_status == 0 ? OKAY :
                (del_status == 1 ? ENOTFOUND : EUNK);
@@ -194,7 +192,7 @@ int handle_request(ClientData* cdata) {
   
     case GET:
   
-      LookupResult lr = cache_get(cdata->key, cdata->key_size, global_cache);
+      LookupResult lr = cache_get(cdata->key, cdata->key_size, cache);
 
       if (lookup_result_is_ok(lr)) {
         
@@ -220,7 +218,7 @@ int handle_request(ClientData* cdata) {
     case STATS: {
       
       // Obtengo el reporte de estadisticas.
-      StatsReport report = cache_report(global_cache);
+      StatsReport report = cache_report(cache);
 
       // Creo un buffer donde cargar el mensaje y lo llenamos
       size_t buffer_size = sizeof(char) * STATS_MESSAGE_LENGTH;
