@@ -1,5 +1,7 @@
 -module(utils).
--export([create_sockets/1, binary_convert/1, recv_bytes/2, create_message/1, create_message/3, create_message/5]).
+-export([is_registered/1, create_sockets/1, binary_convert/1, recv_bytes/2, create_message/1,  create_message/3, create_message/5, create_stats_message/2, create_status_message/3]).
+-include("protocol.hrl").
+
 
 -type server_info() :: {string(), non_neg_integer()}.
 
@@ -42,7 +44,7 @@ binary_convert(Term) ->
 %% @doc Toma un par {IP, Puerto} e intenta establecer una conexion TCP en protocolo binario.
 %% @param ServerInfo la tupla {IP, Puerto} asociada al servidor al que queremos conectarnos.
 %% @return Retorna el objeto gen_tcp:socket() en caso de conectarse exitosamente, o una tupla {error, ServerInfo} con la informacion del servidor al que no logro conectarse.
--spec create_socket(server_info()) -> gen_tcp:socket() | {error, server_info()}. 
+-spec create_socket(server_info()) -> { gen_tcp:socket(), server_info() } | {error, server_info()}. 
 create_socket(ServerInfo) ->
 
   {IpAddress, Port} = ServerInfo,
@@ -50,7 +52,7 @@ create_socket(ServerInfo) ->
   
   case gen_tcp:connect(IpAddress, Port, Options) of 
 
-    {ok, Socket} -> Socket;
+    {ok, Socket} -> { Socket, ServerInfo };
     {error, _}   -> { error, ServerInfo }
 
   end.
@@ -107,3 +109,61 @@ create_message(Operation, KeyLength, Key, ValueLength, Value) ->
 -spec create_message(integer()) -> binary().
 create_message(Operation) ->
   <<Operation:8/integer>>.
+
+
+
+stats_requests(Id, ServersInfo) -> 
+  case lists:keyfind(Id, 3, ServersInfo) of 
+    
+    {_, Socket, _, _, {Ip, Port}} -> 
+      StatsMessage = utils:create_message(?STATS),
+      gen_tcp:send(Socket, StatsMessage),
+      Response = utils:recv_bytes(Socket, 1),
+
+      case Response of
+        serverError -> io_lib:format("Server ~p: shutdown", [Id]);
+        <<?OK>>     -> 
+          <<ValueLength:32/big>> = utils:recv_bytes(Socket, 4), 
+          BinaryValue = utils:recv_bytes(Socket, ValueLength),
+          String = binary_to_list(BinaryValue),
+          io_lib:format("Server ~p (~s:~p): ~p", [Id, Ip, Port, String])
+      end;
+      
+    false          -> io_lib:format("Server ~p: shutdown", [Id])
+  end.
+
+create_stats_message(ServersInfo, InitialNumServer) ->
+  IndexList = lists:seq(1, InitialNumServer),
+  ServersStatsMessage = lists:map(fun(Id) -> stats_requests(Id, ServersInfo) end, IndexList),
+  StatsMessage = string:join(ServersStatsMessage, "~n"),
+  StatsMessage.
+
+create_status_message(TotalKeys, ServersInfo, InitialNumServer) ->
+  
+  case TotalKeys of
+    0 -> "The client has 0 keys across all the servers~n";
+    _ -> 
+      IndexList = lists:seq(1, InitialNumServer),
+      ServerCounterMessage = 
+        lists:map(fun(Id) ->
+          case lists:keyfind(Id, 3, ServersInfo) of
+            {_,_, Id, PutCounter, {Ip, Port}} -> io_lib:format("Server ~p (~s:~p): ~.2f% Keys", [Id, Ip, Port, PutCounter/TotalKeys * 100]);
+            false              -> io_lib:format("Server ~p: shutdown", [Id])
+          end
+        end, IndexList),
+
+      StatusMessage = string:join(ServerCounterMessage, "~n"),
+      StatusMessage
+  end.
+  
+  
+
+%% @doc Determina si el alias para un PID ya ha sido registrado previamente.
+%% @param PidAlias el alias cuyo registro queremos chequear.
+%% @return no si no estaba registrado, si en caso contrario.
+-spec is_registered(atom()) -> no | yes.
+is_registered(PidAlias) ->
+  case whereis(PidAlias) of
+    undefined -> no;
+    _         -> yes
+  end.
