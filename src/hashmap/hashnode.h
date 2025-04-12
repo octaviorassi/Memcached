@@ -88,7 +88,7 @@ int hashnode_clean(HashNode node);
 void* hashnode_get_key(HashNode node);
 
 /**
- * @brief Establece la clave del nodo.
+ * @brief Establece la clave del nodo, liberando la memoria de la clave anterior, en caso de existir.
  * 
  * @param node Puntero al nodo.
  * @param key El puntero a la nueva clave para el nodo.
@@ -110,7 +110,7 @@ void* hashnode_get_val(HashNode node);
 
 
 /**
- * @brief Establece la clave del nodo.
+ * @brief Establece la clave del nodo, liberando la memoria del valor anterior, en caso de existir.
  * 
  * @param node Puntero al nodo.
  * @param val El puntero al nuevo valor para el nodo.
