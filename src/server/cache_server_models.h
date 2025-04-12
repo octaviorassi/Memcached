@@ -1,7 +1,7 @@
 #ifndef __CACHE_SERVER_MODELS_H__
 #define __CACHE_SERVER_MODELS_H__
 
-#define LENGTH 4
+#define LENGTH_PREFIX_SIZE 4
 
 typedef enum {
 
@@ -59,11 +59,11 @@ typedef struct {
 
   char command;
   
-  char key_size_buffer[LENGTH]; 
+  char key_size_buffer[LENGTH_PREFIX_SIZE]; 
   int key_size;
   char* key;
 
-  char value_size_buffer[LENGTH];
+  char value_size_buffer[LENGTH_PREFIX_SIZE];
   int value_size;
   char* value;
 
