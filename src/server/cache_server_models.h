@@ -40,6 +40,7 @@ typedef struct {
   int server_epoll;
   int server_socket;
   int thread_number;
+  Cache cache;
 
 } ThreadArgs;
 

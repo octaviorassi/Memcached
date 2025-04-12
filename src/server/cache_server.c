@@ -11,8 +11,6 @@
 
 #define RESET   "\x1b[0m"
 
-Cache global_cache;
-
 static void print_error_msg(int thread_number) {
   printf(RED "[Thread %d] " RESET, thread_number);
   printf("Error en socket\n");
@@ -50,7 +48,7 @@ static void print_handling_msg(int thread_number) {
  * 
  *    - Si el socket del `event_data` es el socket del servidor, entonces se trata de un intento de conexion. El thread acepta la conexion, crea la estructura de datos para el nuevo cliente, reconstruye la instancia de epoll y vuelve a iniciar el ciclo.
  * 
- *    - Si el socket del `event_data` es distinto al del servidor, se trata de un cliente ya conectado intentando escribir. Se parsea el stream recibido y actualiza la informacion del cliente. Si el parseo llego a su estado final, se ejecuta el pedido. En todos los casos, se reconstruye la estancia de epoll y se vuelve a iniciar el ciclo.
+ *    - Si el socket del `event_data` es distinto al del servidor, se trata de un cliente ya conectado intentando escribir. Se parsea el stream recibido y actualiza la informacion del cliente. Si el parseo llego a su estado final, se ejecuta el pedido. En todos los casos, se reconstruye la instancia de epoll y se vuelve a iniciar el ciclo.
  * 
  */
 void* working_thread(void* thread_args) {
@@ -61,7 +59,7 @@ void* working_thread(void* thread_args) {
   int server_epoll = thread_args_casted->server_epoll;
   int server_socket = thread_args_casted->server_socket;
   int thread_number = thread_args_casted->thread_number;
-  // Hash hash = thread_args_casted->hash;
+  Cache cache = thread_args_casted->cache;
 
   struct epoll_event event;
 
@@ -99,7 +97,7 @@ void* working_thread(void* thread_args) {
       print_parsing_msg(thread_number);
 
       // Si fracaso el parseo, droppeamos al cliente 
-      if (parse_request(event_data) < 0) {
+      if (parse_request(event_data, cache) < 0) {
         print_error_msg(thread_number);
         drop_client(server_epoll, event_data);
       }
@@ -109,7 +107,7 @@ void* working_thread(void* thread_args) {
         print_handling_msg(thread_number);
 
         // Si fracaso el envio de la respuesta al cliente, lo droppeamos
-        if (handle_request(event_data) < 0) {
+        if (handle_request(event_data, cache) < 0) {
           print_error_msg(thread_number);
           drop_client(server_epoll, event_data);
         }
@@ -136,7 +134,7 @@ void start_server(ServerArgs* server_args) {
   ThreadArgs thread_args;
   thread_args.server_epoll = epoll_create1(0);
   thread_args.server_socket = server_args->server_socket;
-  // thread_args.hash = server_args->hash;
+  thread_args.cache = server_args->cache;
 
   // El primer evento que controlamos es el de EPOLLIN al socket del servidor, que representa un intento de conexion. Solo cargamos el campo de socket, pues la informacion de parseo no aplica a este evento.
   ClientData server_data;
@@ -154,7 +152,6 @@ void start_server(ServerArgs* server_args) {
   int num_threads = server_args->num_threads;
 
   // Creamos un ThreadArgs por cada thread, donde cada uno es una copia del thread_args que creamos en un principio.
-  // ? Es necesario que cada uno tenga su copia? No podemos pasarle el mismo puntero a todos? Si al fin y al cabo son solo los fd del epoll y el socket.
   pthread_t threads[num_threads];
   ThreadArgs threads_args[num_threads];
 
@@ -180,7 +177,7 @@ int main(int argc, char** argv) { // Sabemos que los argumentos son correctos.
   ServerArgs server_args;
   server_args.server_socket = atoi(argv[1]);
   server_args.num_threads = atoi(argv[2]);
-  global_cache = cache_create((HashFunction) kr_hash);
+  Cache global_cache = cache_create((HashFunction) kr_hash);
   server_args.cache = global_cache;
 
   start_server(&server_args);

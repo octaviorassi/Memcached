@@ -15,8 +15,7 @@
 struct Cache {
 
   // Hash
-  HashFunction        hash_function; // ? tiene sentido dar la opcion de pasarlo por argumento?
-    
+  HashFunction        hash_function;
   HashNode            buckets[N_BUCKETS];
   int                 n_buckets;
   pthread_rwlock_t*   zone_locks[N_LOCKS];
@@ -182,10 +181,12 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   cache_stats_key_counter_inc(cache->stats);
   
+  /*
   PRINT("key_size, val_size, sum: %lu - %lu - %lu", key_size, val_size, key_size + val_size);
   PRINT("Allocated memory pre-put: %lu", cache_stats_get_allocated_memory(cache->stats));
   cache_stats_allocated_memory_add(cache->stats, key_size + val_size);
   PRINT("Allocated memory post-put: %lu", cache_stats_get_allocated_memory(cache->stats));
+  */
 
   return 0;
 
@@ -210,8 +211,10 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   HashNode bucket = cache->buckets[bucket_number];
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
+  // Independientemente del resultado, lo contamos como una operacion DEL
+  cache_stats_del_counter_inc(cache->stats);
+
   // Si la clave no pertenecia a la cache, devolvemos el lock y retornamos.
-  // ! Deberia sumar al contador de delete incluso si no se hizo la operacion, para ser consistente con el contador de put/get que siempre aumentan
   if (node == NULL) {
     pthread_rwlock_unlock(lock);
     return 1; 
@@ -234,7 +237,6 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   
   pthread_rwlock_unlock(lock);
 
-  cache_stats_del_counter_inc(cache->stats);
   cache_stats_key_counter_dec(cache->stats);
   cache_stats_allocated_memory_free(cache->stats, allocated_memory);
 
@@ -266,7 +268,7 @@ size_t cache_free_up_memory(Cache cache) {
   }
 
   size_t freed_memory = 0;
-  while (lru_last_node != NULL) {
+  while (lru_last_node != NULL && freed_memory == 0) {
 
     unsigned int buck_num = lrunode_get_bucket_number(lru_last_node);
     pthread_rwlock_t* zone_lock = cache_get_zone_mutex(buck_num, cache);
@@ -276,10 +278,11 @@ size_t cache_free_up_memory(Cache cache) {
 
     HashNode bucket = cache->buckets[buck_num];
 
+    // Guardamos las referencias a su siguiente y a su hashnode asociado pues, si obtenemos el lock de este nodo, lo destruiremos y las perderemos.
     LRUNode next_node = lrunode_get_next(lru_last_node);
     HashNode hashnode = lrunode_get_hash_node(lru_last_node);
     
-    if (pthread_rwlock_trywrlock(zone_lock) == 0) { // Obtuviste el lock
+    if (pthread_rwlock_trywrlock(zone_lock) == 0) { // Obtuvimos el lock
 
       // Eliminamos al LRUNode de la LRUQueue
       lru_queue_node_clean(lru_last_node, cache->queue);
@@ -301,14 +304,10 @@ size_t cache_free_up_memory(Cache cache) {
 
       cache_stats_evict_counter_inc(cache->stats);
 
-      PRINT("Memoria liberada calculada: %lu", freed_memory);
-      PRINT("Allocated memory previo a liberar: %lu", cache_stats_get_allocated_memory(cache->stats));
-      cache_stats_allocated_memory_free(cache->stats, freed_memory);
-      PRINT("Allocated memory luego de liberar: %lu", cache_stats_get_allocated_memory(cache->stats));
-
     }
 
     lru_last_node = next_node;
+
   }
   
   lru_queue_unlock(cache->queue);
@@ -367,7 +366,6 @@ static int hashmap_init(HashFunction hash, Cache cache) {
   cache->n_buckets = N_BUCKETS;
 
   // Inicializamos los locks 
-  // ? tiene sentido asignar dinamicamente los locks, si ya se que van a ser N_LOCKS?
   int mutex_error = 0;
   for (int i = 0; i < N_LOCKS; i++) {
     cache->zone_locks[i] = malloc(sizeof(pthread_rwlock_t));

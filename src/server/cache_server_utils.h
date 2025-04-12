@@ -49,20 +49,22 @@ ssize_t send_socket(int socket, char* message, int size);
  *  @brief Parsea el mensaje proveniente del cliente asociado al `data` de acuerdo a su parsing stage. Este parseo siempre es total; en caso de recibirse un mensaje incompleto, la informacion del cliente se actualiza y se vuelve a invocar la funcion recursivamente hasta que se complete el mensaje o se produza un error.
  * 
  *  @param[out] cdata Puntero a la estructura con la informacion del cliente que es actualizada de acuerdo a la informacion parseada.
+ *  @param[in] cache El puntero a la cache asociada al pedido a parsear.
  *
  *  @return 0 si parseo correctamente, -1 si fracaso al recibir bytes del socket.
  */
-int parse_request(ClientData* cdata);
+int parse_request(ClientData* cdata, Cache cache);
 
 
 /**
  *  @brief Ejecuta el comando cargado en la estructura con informacion del cliente apuntada por `data` en su campo `command`.
  * 
  *  @param cdata Puntero a la estructura con informacion del cliente.
+ *  @param[in] cache El puntero a la cache asociada al pedido a parsear.
  *
  *  @return 0 si la ejecucion del pedido es exitosa, -1 si se produjo un error al intentar enviar la respuesta.
  */
-int handle_request(ClientData* cdata);
+int handle_request(ClientData* cdata, Cache cache);
 
 
 /**

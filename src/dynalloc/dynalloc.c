@@ -7,9 +7,9 @@
 #define DYNALLOC_FAIL_RATE 0
 #define MAX_ATTEMPTS 2
 
-extern Cache global_cache;
+static size_t max(size_t goal, size_t sz) { return sz < goal ? goal : sz; }
 
-void* dynalloc(size_t sz) {
+void* dynalloc(size_t sz, Cache cache) {
     
     if (DYNALLOC_FAIL_RATE > 0 && (rand() % 100) < DYNALLOC_FAIL_RATE)
         PRINT("Falla de dynalloc simulada.");
@@ -21,17 +21,21 @@ void* dynalloc(size_t sz) {
 
     PRINT("No hay memoria suficiente. Debemos liberar memoria.");
 
-    // Liberamos el 20% de la memoria actualmente en uso 
-    size_t memory_goal = cache_stats_get_allocated_memory(
-                         cache_get_cstats(global_cache)) / 5;
+    // Liberaremos el maximo entre el 20% de la memoria ocupada actual y el size del bloque a asignar
+    size_t memory_goal = max(cache_stats_get_allocated_memory(
+                             cache_get_cstats(cache)) / 5,
+                             sz);
     size_t total_freed_memory = 0;
     size_t freed_memory;
 
-    PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(global_cache)));
+    PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(cache)));
     PRINT("Memory goal: %lu", memory_goal);
 
     while (total_freed_memory < memory_goal) {
-        freed_memory = cache_free_up_memory(global_cache);
+
+        freed_memory = cache_free_up_memory(cache);
+
+        // Si se produjo algun error, directamente retornamos NULL
         if (freed_memory < 0)
             return NULL;
 
@@ -40,24 +44,7 @@ void* dynalloc(size_t sz) {
 
     PRINT("Memoria liberada correctamente. Total liberado: %lu", total_freed_memory);
 
-    // Ahora deberiamos poder asignar el bloque. Si no, intentamos de nuevo.
-    return dynalloc(sz);
-
-}
-
-void* dynrealloc(void* ptr, size_t sz, Cache cache) {
-    
-    // Intentamos reasignar memoria normalmente
-    void* realloc_ptr = realloc(ptr, sz);
-    
-    if (realloc_ptr != NULL) // Habia memoria suficiente para reasignar.
-        return realloc_ptr;
-
-    // Liberamos memoria hasta dos veces el tamaño requerido
-    size_t freed_size = 0;
-    while (freed_size < 2 * sz);
-        // freed_size += cache_free_up_memory(cache);
-
-    return dynrealloc(ptr, sz, cache);
+    // Ahora deberiamos poder asignar el bloque siempre.
+    return malloc(sz);
 
 }
