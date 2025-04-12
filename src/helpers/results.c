@@ -10,11 +10,11 @@ inline LookupResult create_ok_lookup_result(void* ptr,size_t size) {
 }
 
 inline LookupResult create_error_lookup_result() {
-    return create_lookup_result(0, 0, ERROR);
+    return create_lookup_result(NULL, 0, ERROR);
 }
 
 inline LookupResult create_miss_lookup_result() {
-    return create_lookup_result(0, 0, MISS);
+    return create_lookup_result(NULL, 0, MISS);
 }
 
 inline int lookup_result_is_error(LookupResult lr) {

@@ -50,17 +50,6 @@ int lru_queue_unlock(LRUQueue q);
 LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q);
 
 /**
- *  @brief Elimina el nodo menos recientemente utilizado de la cola, liberando su memoria asignada y retornando un puntero a su HashNode asociado.
- * 
- *  `IMPORTANTE` Se debe poseer el lock de la zona a la que este nodo pertenece o, en su defecto, el de todas las zonas.
- * 
- * @param q La cola LRU objetivo.
- * @return El puntero al HashNode asociado al nodo expulsado.
- * 
- */
-HashNode lru_queue_evict(LRUQueue q);
-
-/**
  *  @brief Obtiene el puntero al nodo menos recientemente utilizado de la LRUQueue objetivo.
  * 
  *  `IMPORTANTE` Debe contarse con el lock de la LRUQueue al invocarse a esta funcion.
@@ -72,7 +61,7 @@ HashNode lru_queue_evict(LRUQueue q);
 LRUNode lru_queue_get_least_recent(LRUQueue q);
 
 /**
- *  @brief Destruye la cola LRU objetivo, liberando los recursos asignados sin liberar la memoria asociada a los nodos de la tabla hash. 
+ *  @brief Destruye la cola LRU objetivo, liberando los recursos asignados sin liberar la memoria asociada a los nodos de la tabla hash. Esta operacion es `thread-safe`, no debe poseerse el lock al invocarla.
  * 
  * @param q La cola LRU a destruir.
  * @return 0 si es exitoso, -1 en caso de error.

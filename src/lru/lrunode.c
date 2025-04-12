@@ -29,8 +29,9 @@ LRUNode lrunode_create(Cache cache) {
 
 // ! no hace falta usar la interfaz dentro de lrunode.c realmente xd
 int lru_node_is_clean(LRUNode node) {
-  return  lrunode_get_prev(node) == NULL &&
-          lrunode_get_next(node) == NULL;
+    if  (node == NULL) return 1;
+    return  node->prev == NULL &&
+            node->next == NULL;
 }
 
 void lrunode_destroy(LRUNode node) {
@@ -84,8 +85,7 @@ void lrunode_set_bucket_number(LRUNode node, unsigned int bucket_number) {
 
 unsigned int lrunode_get_bucket_number(LRUNode node) {
 
-    PRINT("Node es null? %s", node == NULL ? "Si." : "No.");
-
+    // ! BORRAR
     if (node)
         PRINT("Bucket number calculado para el node a desalojar: %u", node->bucket_number);
         

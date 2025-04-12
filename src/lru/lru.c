@@ -22,7 +22,6 @@ inline int lru_queue_unlock(LRUQueue q);
 
 LRUQueue lru_queue_create() { 
   
-  // ? tiene sentido asignarlo dinamicamente? al pedo
   pthread_mutex_t* lock = malloc(sizeof(pthread_mutex_t));
   if (lock == NULL)
     return NULL;
@@ -114,9 +113,6 @@ void lru_queue_node_clean(LRUNode node, LRUQueue q) {
     q->most_recent  = prev;
 
 }
-
-// En desuso.
-HashNode lru_queue_evict(LRUQueue q) { return NULL; }
 
 
 LRUNode lru_queue_get_least_recent(LRUQueue q) {
