@@ -177,7 +177,7 @@ int main(int argc, char** argv) { // Sabemos que los argumentos son correctos.
   ServerArgs server_args;
   server_args.server_socket = atoi(argv[1]);
   server_args.num_threads = atoi(argv[2]);
-  Cache global_cache = cache_create((HashFunction) kr_hash);
+  Cache global_cache = cache_create((HashFunction) kr_hash, server_args.num_threads);
   server_args.cache = global_cache;
 
   start_server(&server_args);

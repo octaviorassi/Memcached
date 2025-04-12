@@ -26,10 +26,11 @@ typedef unsigned long (*HashFunction)(void* , size_t);
  *  @brief Inicializa una Cache con funcion de hash \a hash.
  * 
  *  @param hash Funcion de hash a utilizar.
+ *  @param num_threads Cantidad de threads que correran sobre la cache.
  * 
  *  @return Un puntero a la cache creada.
  */
-Cache cache_create(HashFunction hash);
+Cache cache_create(HashFunction hash, int num_threads);
 
 
 /**

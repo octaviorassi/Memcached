@@ -1,6 +1,7 @@
 #include <sys/epoll.h>
 #include <stdio.h>
 #include "cache_server_utils.h"
+#include "cache_server_models.h"
 #include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
 
 // ? Problema: yo quiero que solo vea las funciones que expone la cache, no quiero que cache_utils pueda ver las funciones que expone cache_stats a cache. 
@@ -84,9 +85,9 @@ int parse_request(ClientData* cdata, Cache cache) {
 
       if (recv_socket(cdata->socket,
                       cdata->key_size_buffer + cdata->parsing_index,
-                      LENGTH - cdata->parsing_index, cdata) < 0) return -1;
+                      LENGTH_PREFIX_SIZE - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < LENGTH) return 0;
+      if (cdata->parsing_index < LENGTH_PREFIX_SIZE) return 0;
 
       cdata->key_size = htonl(*(int*)(cdata->key_size_buffer));
       
@@ -120,9 +121,9 @@ int parse_request(ClientData* cdata, Cache cache) {
 
       if (recv_socket(cdata->socket,
                       cdata->value_size_buffer + cdata->parsing_index,
-                      LENGTH - cdata->parsing_index, cdata) < 0) return -1;
+                      LENGTH_PREFIX_SIZE - cdata->parsing_index, cdata) < 0) return -1;
 
-      if (cdata->parsing_index < LENGTH) return 0;
+      if (cdata->parsing_index < LENGTH_PREFIX_SIZE) return 0;
 
       cdata->value_size = htonl(*(int*)(cdata->value_size_buffer));
 
@@ -197,12 +198,12 @@ int handle_request(ClientData* cdata, Cache cache) {
       if (lookup_result_is_ok(lr)) {
         
         char command = OKAY;
-        char length_buffer[LENGTH];
+        char length_prefix_buffer[LENGTH_PREFIX_SIZE];
         size_t size = ntohl(lookup_result_get_size(lr));
-        memcpy(length_buffer, &size, LENGTH);
+        memcpy(length_prefix_buffer, &size, LENGTH_PREFIX_SIZE);
 
         if (send_socket(cdata->socket, &command, 1) < 0) return -1;
-        if (send_socket(cdata->socket, length_buffer, LENGTH) < 0) return -1;
+        if (send_socket(cdata->socket, length_prefix_buffer, LENGTH_PREFIX_SIZE) < 0) return -1;
         if (send_socket(cdata->socket,
                         lookup_result_get_value(lr),
                         lookup_result_get_size(lr)) < 0) return -1;
@@ -223,17 +224,17 @@ int handle_request(ClientData* cdata, Cache cache) {
       // Creo un buffer donde cargar el mensaje y lo llenamos
       size_t buffer_size = sizeof(char) * STATS_MESSAGE_LENGTH;
       char report_buffer[buffer_size];
-      char command = STATS;
+      char command = OKAY;
     
       int report_len = stats_report_stringify(report, report_buffer);
 
-      char length_buffer[LENGTH];
+      char length_prefix_buffer[LENGTH_PREFIX_SIZE];
       size_t size = ntohl(report_len);
-      memcpy(length_buffer, &size, LENGTH);
+      memcpy(length_prefix_buffer, &size, LENGTH_PREFIX_SIZE);
 
       // Enviamos el comando el mensaje
       send_socket(cdata->socket, &command, 1);              // Mando STATS 
-      send_socket(cdata->socket, length_buffer, LENGTH);    // Prefijo longitud
+      send_socket(cdata->socket, length_prefix_buffer, LENGTH_PREFIX_SIZE);    // Prefijo longitud
       send_socket(cdata->socket, report_buffer, report_len);  // String del report
 
       break;
@@ -257,8 +258,6 @@ void reset_client_data(ClientData* cdata) {
 
   cdata->parsing_index = 0;
   cdata->parsing_stage = PARSING_COMMAND;
-  // memset(data->key_size_buffer, 0, LENGTH);
-  // memset(data->value_size_buffer, 0, LENGTH);
 
 }
 
@@ -289,8 +288,8 @@ ClientData* create_new_client_data(int client_socket) {
 
   ClientData* new_cdata = malloc(sizeof(ClientData));
 
-  memset(new_cdata->key_size_buffer,0,LENGTH);
-  memset(new_cdata->value_size_buffer,0,LENGTH);
+  memset(new_cdata->key_size_buffer,0,LENGTH_PREFIX_SIZE);
+  memset(new_cdata->value_size_buffer,0,LENGTH_PREFIX_SIZE);
 
   new_cdata->parsing_index = 0;
   new_cdata->parsing_stage = PARSING_COMMAND;

@@ -7,8 +7,8 @@
 #include "../lru/lru.h"
 #include "../lru/lrunode.h"
 
-#define N_LOCKS 10
-#define N_BUCKETS 10 * N_LOCKS
+#define BUCKETS_FACTOR 10
+#define ZONES_FACTOR 2
 #define DEBUG 0
 
 
@@ -16,9 +16,10 @@ struct Cache {
 
   // Hash
   HashFunction        hash_function;
-  HashNode            buckets[N_BUCKETS];
-  int                 n_buckets;
-  pthread_rwlock_t*   zone_locks[N_LOCKS];
+  HashNode*           buckets;
+  int                 num_buckets;
+  pthread_rwlock_t**  zone_locks;
+  int                 num_zones;
 
   // LRUQueue
   LRUQueue  queue;
@@ -31,7 +32,7 @@ struct Cache {
 
 /* Prototipos de las utilidades */
 
-static int hashmap_init(HashFunction hash, Cache cache);
+static int hashmap_init(HashFunction hash, Cache cache, int num_threads);
 static int hashmap_destroy(Cache cache);
 static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache);
 static pthread_rwlock_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache);
@@ -39,13 +40,13 @@ static pthread_rwlock_t* cache_get_zone_mutex(unsigned int bucket_number, Cache 
 
 /* Interfaz de la Cache */
 
-Cache cache_create(HashFunction hash) { 
+Cache cache_create(HashFunction hash, int num_threads) { 
 
   Cache cache = malloc(sizeof(struct Cache));
   if (cache == NULL)
     return NULL;
 
-  if (hashmap_init(hash, cache) != 0) {
+  if (hashmap_init(hash, cache, num_threads) != 0) {
     free(cache);
     return NULL;
   }
@@ -355,25 +356,43 @@ void cache_destroy(Cache cache) {
  *  @param cache Puntero a la cache donde se inicializara el HashMap.
  *  @return 0 si es exitoso, -1 en caso de producirse un error al inicializar el HashMap.
  */
-static int hashmap_init(HashFunction hash, Cache cache) {
+static int hashmap_init(HashFunction hash, Cache cache, int num_threads) {
 
-  // todo: emprolijar manejo de memoria, liberar cuando retorna, etc.
-  
   cache->hash_function = hash;
+  int num_zones = num_threads * ZONES_FACTOR;
+  int num_buckets = num_zones * BUCKETS_FACTOR;
 
-  memset(cache->buckets, 0, sizeof(HashNode) * N_BUCKETS);
+  // Creamos el doble de zonas que de threads.
+  cache->zone_locks = malloc(sizeof(pthread_rwlock_t*) * num_zones);
+  if (cache->zone_locks == NULL)
+    return -1;
 
-  cache->n_buckets = N_BUCKETS;
+  // Y la cantidad de buckets viene dada por la cantidad de zonas por un factor 
+  cache->buckets = malloc(sizeof(HashNode) * num_buckets);
+  if (cache->buckets == NULL) {
+    free(cache->zone_locks);
+    return -1;
+  }
+
+  memset(cache->buckets, 0, sizeof(HashNode) * num_buckets);
+
 
   // Inicializamos los locks 
   int mutex_error = 0;
-  for (int i = 0; i < N_LOCKS; i++) {
+  for (int i = 0; i < num_zones; i++) {
     cache->zone_locks[i] = malloc(sizeof(pthread_rwlock_t));
-    if (cache->zone_locks[i] == NULL)
+    if (cache->zone_locks[i] == NULL) {
+      free(cache->zone_locks);
+      free(cache->buckets);
+      for (int j = 0; j < i; j++) free(cache->zone_locks[j]);
       return -1;
+    }
 
     mutex_error = mutex_error || pthread_rwlock_init(cache->zone_locks[i],NULL);
   }
+
+  cache->num_zones = num_zones;
+  cache->num_buckets = num_buckets;
 
   if (mutex_error)
       return -1;
@@ -394,15 +413,15 @@ static int hashmap_destroy(Cache cache) {
   if (cache == NULL)
     return 1;
 
-  // Tomamos todos los locks
+  // Tomamos los locks de todas las zonas 
   int status = 0;
-  for (int i = 0; i < N_LOCKS; i++)
+  for (int i = 0; i < cache->num_zones; i++)
     status = pthread_rwlock_wrlock(cache->zone_locks[i]) || status;
 
   // Y pasamos a recorrer cada bucket destruyendo todos los nodos.
   HashNode tmp, next;
 
-  for (int i = 0; i < N_BUCKETS; i++) {
+  for (int i = 0; i < cache->num_buckets; i++) {
 
     tmp = cache->buckets[i];
 
@@ -419,12 +438,15 @@ static int hashmap_destroy(Cache cache) {
 
   }
 
-  // Y destruimos todos los pthread_rwlock_t
-  for (int i = 0; i < N_LOCKS; i++) {
+  // Destruimos todos los pthread_rwlock_t
+  for (int i = 0; i < cache->num_zones; i++) {
     pthread_rwlock_destroy(cache->zone_locks[i]);
     free(cache->zone_locks[i]);
   }
 
+  // Tambien destruimos los arrays de locks y arrays de buckets
+  free(cache->zone_locks);
+  free(cache->buckets);
 
   return 0;
 
@@ -440,8 +462,7 @@ static int hashmap_destroy(Cache cache) {
  *  @return El numero de bucket asociado a la key en la cache.
  */
 static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache) {
-  return cache->hash_function(key, size) % cache->n_buckets;
-
+  return cache->hash_function(key, size) % cache->num_buckets;
 }
 
 
@@ -456,7 +477,7 @@ static pthread_rwlock_t* cache_get_zone_mutex(unsigned int bucket_number, Cache 
   if (cache == NULL)
     return NULL;
 
-  return cache->zone_locks[bucket_number % N_LOCKS];
+  return cache->zone_locks[bucket_number % cache->num_zones];
 
 }
 
