@@ -26,7 +26,7 @@ void* dynalloc(size_t sz, Cache cache) {
                              cache_get_cstats(cache)) / 5,
                              sz);
     size_t total_freed_memory = 0;
-    size_t freed_memory;
+    ssize_t freed_memory;
 
     PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(cache)));
     PRINT("Memory goal: %lu", memory_goal);

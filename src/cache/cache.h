@@ -89,7 +89,7 @@ StatsReport cache_report(Cache cache);
  *  @param cache La cache donde se liberara memoria.
  *  @return La cantidad de memoria liberada al eliminar la clave y el valor menos utilizados.
  */
-size_t cache_free_up_memory(Cache cache);
+ssize_t cache_free_up_memory(Cache cache);
 
 
 /**

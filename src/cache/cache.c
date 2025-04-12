@@ -252,7 +252,7 @@ StatsReport cache_report(Cache cache) {
 }
 
 
-size_t cache_free_up_memory(Cache cache) {
+ssize_t cache_free_up_memory(Cache cache) {
 
   if (cache == NULL)
     return -1;
