@@ -94,7 +94,7 @@ void* working_thread(void* thread_args) {
       print_accepted_msg(thread_number);
 
       // Creamos el epoll_event del cliente y lo cargamos al epoll
-      ClientData* new_client_data = create_new_client_data(new_client_socket);
+      ClientData* new_client_data = create_new_client_data(new_client_socket, cache);
       construct_new_client_epoll(server_epoll, new_client_data);
 
       // Reconstruimos el evento de epoll del servidor

@@ -284,9 +284,9 @@ int construct_new_client_epoll(int epoll_fd, ClientData* cdata) {
 }
 
 
-ClientData* create_new_client_data(int client_socket) {
+ClientData* create_new_client_data(int client_socket, Cache cache) {
 
-  ClientData* new_cdata = malloc(sizeof(ClientData));
+  ClientData* new_cdata = dynalloc(sizeof(ClientData), cache);
 
   memset(new_cdata->key_size_buffer,0,LENGTH_PREFIX_SIZE);
   memset(new_cdata->value_size_buffer,0,LENGTH_PREFIX_SIZE);

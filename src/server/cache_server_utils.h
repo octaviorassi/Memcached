@@ -101,10 +101,11 @@ int construct_new_client_epoll(int epoll_fd, ClientData* cdata);
  *  @brief Crea e inicializa una nueva estructura de informacion del cliente con el socket de cliente establecido a `client_socket`.
  *  
  *  @param client_socket File descriptor del socket del cliente.
+ *  @param cache Puntero a la cache con la que se comunicara el nuevo cliente.
  * 
  *  @return Un puntero a la estructura creada e inicializada.
  */
-ClientData* create_new_client_data(int client_socket);
+ClientData* create_new_client_data(int client_socket, Cache cache);
 
 
 /**
