@@ -69,7 +69,7 @@ int parse_request(ClientData* cdata, Cache cache);
 
 
 /**
- *  @brief Ejecuta el comando cargado en la estructura con informacion del cliente apuntada por `data` en su campo `command`.
+ *  @brief Ejecuta el comando cargado en la estructura con informacion del cliente apuntada por `cdata` en su campo `command`. Tambien libera la memoria asignada al buffer dinamico donde se almacena la `key` en el `cdata`, en caso de ser necesario.
  * 
  *  @param cdata Puntero a la estructura con informacion del cliente.
  *  @param[in] cache El puntero a la cache asociada al pedido a parsear.

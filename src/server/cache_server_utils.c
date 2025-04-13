@@ -4,9 +4,7 @@
 #include "cache_server_models.h"
 #include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
 
-// ? Problema: yo quiero que solo vea las funciones que expone la cache, no quiero que cache_utils pueda ver las funciones que expone cache_stats a cache. 
 #define TRASH_BUFFER_SIZE 100
-
 
 ssize_t clean_socket(ClientData* client, int size) {
 
@@ -129,6 +127,7 @@ int parse_request(ClientData* cdata, Cache cache) {
       cdata->key = dynalloc(cdata->key_size, cache); 
       if (cdata->key == NULL) {
         // Si falla la asignacion de memoria, marcamos el comando como EBIG.
+        // Pasamos al cliente a estado cleaning, vaciando todo lo que queda en el buffer para poder volver a sincronizarnos con el final del mensaje.
         cdata->command = EBIG;
         cdata->cleaning = 1;
       }
@@ -140,14 +139,18 @@ int parse_request(ClientData* cdata, Cache cache) {
 
     case PARSING_KEY:
      
-      if (cdata->cleaning){
-        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) return -1;
-      } 
+      if (cdata->cleaning) {
+        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) {
+          return -1;
+        }
+      }
 
       else if (recv_client(cdata, cdata->key + cdata->parsing_index,
-                           cdata->key_size - cdata->parsing_index) < 0) return -1;
-
-
+                           cdata->key_size - cdata->parsing_index) < 0) {
+        // Liberamos la memoria asignada hasta ahora y propagamos el error
+        free(cdata->key);
+        return -1;
+      } 
 
       if (cdata->parsing_index < cdata->key_size) return 0;
 
@@ -161,30 +164,43 @@ int parse_request(ClientData* cdata, Cache cache) {
 
       if (recv_client(cdata,
                       cdata->value_size_buffer + cdata->parsing_index,
-                      LENGTH_PREFIX_SIZE - cdata->parsing_index) < 0) return -1;
+                      LENGTH_PREFIX_SIZE - cdata->parsing_index) < 0) {
+        free(cdata->key);
+        return -1;
+      }
 
+      // El recv ya no puede leer mas bytes, pero no terminamos de leer el prefijo de longitud. Retornamos 0, el cliente volvera a ser controlado por el epoll, y esperamos a que vuelvan a llegar bytes para leerlos.
       if (cdata->parsing_index < LENGTH_PREFIX_SIZE) return 0;
 
       cdata->value_size = htonl(*(int*)(cdata->value_size_buffer));
 
-      cdata->value = dynalloc(cdata->value_size, cache);
-      if (cdata->value == NULL) {
-        // Analogo al caso de fallar en key, pero libero la memoria
-        free(cdata->key);
-        cdata->command = EBIG;
-        cdata->cleaning = 1;
+      // Si no estaba limpiando, pido la memoria para value.
+      if (!cdata->cleaning) {
+
+        cdata->value = dynalloc(cdata->value_size, cache);
+
+        if (cdata->value == NULL) {
+          // Analogo al caso de fallar en key, pero libero la memoria de key
+          free(cdata->key);
+          cdata->command = EBIG;
+          cdata->cleaning = 1;
+
+        }
+
       }
 
       cdata->parsing_stage = PARSING_VALUE;
       cdata->parsing_index = 0;
+
       break;
 
     case PARSING_VALUE:
       
-      if (cdata->cleaning){
-        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) return -1;
-      } 
-
+      if (cdata->cleaning) {
+        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) {
+          return -1;  // No hace falta liberar cdata->key y cdata->value nunca, porque si llegue en cleaning a este punto ambos son NULL ya.
+        }
+      }
       else if (recv_client(cdata, cdata->value + cdata->parsing_index,
                       cdata->value_size - cdata->parsing_index) < 0) return -1;
 
@@ -214,10 +230,21 @@ int handle_request(ClientData* cdata, Cache cache) {
 
     case PUT:
 
-      int put_status = cache_put(cdata->key, cdata->key_size, cdata->value, cdata->value_size, cache);
+      int put_status = cache_put(cdata->key, cdata->key_size,
+                                 cdata->value, cdata->value_size, cache);
       
       // Si el put fue exitoso, respondemos con OK, si no, con EUNK
-      command = put_status == 0 ? OKAY : EUNK;
+      command = put_status < 0 ? EUNK : OKAY;
+
+      // Si lo que se hizo fue pisar el valor, hay que liberar la memoria de la key, pues queda la anterior
+      if (put_status == 1)
+        free(cdata->key);
+
+      // Si se produjo un error, hay que liberar tanto la clave como el valor, pues ninguna de las dos fue insertada a la cache.
+      else if (put_status < 0) {
+        free(cdata->key);
+        free(cdata->value);
+      }
 
       if (send_client(cdata, &command, 1) < 0) return -1;
 
@@ -230,6 +257,10 @@ int handle_request(ClientData* cdata, Cache cache) {
       command = del_status == 0 ? OKAY :
                (del_status == 1 ? ENOTFOUND : EUNK);
 
+      // En cualquier caso, quiero liberar el buffer donde guarde la key una vez terminada la operacion.
+      if (cdata->key)
+        free(cdata->key);
+
       if (send_client(cdata, &command, 1) < 0) return -1;
       
       break;
@@ -237,6 +268,10 @@ int handle_request(ClientData* cdata, Cache cache) {
     case GET:
   
       LookupResult lr = cache_get(cdata->key, cdata->key_size, cache);
+
+      // En cualquier caso, quiero liberar el buffer donde guarde la key una vez terminada la operacion.
+      if (cdata->key)
+        free(cdata->key);
 
       if (lookup_result_is_ok(lr)) {
         
@@ -256,7 +291,6 @@ int handle_request(ClientData* cdata, Cache cache) {
         command = ENOTFOUND;
         if (send_client(cdata, &command, 1) < 0) return -1;
       }
-      
       break;
   
     case STATS: {
@@ -281,13 +315,14 @@ int handle_request(ClientData* cdata, Cache cache) {
       send_client(cdata, report_buffer, report_len);  // String del report
 
       break;
+
     }
 
     case EBIG:
 
       command = EBIG;
       if (send_client(cdata, &command, 1) < 0) return -1;
-
+      
       break;
   
   }  
@@ -299,9 +334,11 @@ int handle_request(ClientData* cdata, Cache cache) {
 
 void reset_client_data(ClientData* cdata) {
 
-  cdata->parsing_index = 0;
-  cdata->parsing_stage = PARSING_COMMAND;
-  cdata->cleaning = 0;
+  cdata->parsing_index  = 0;
+  cdata->parsing_stage  = PARSING_COMMAND;
+  cdata->cleaning       = 0;
+  cdata->key            = NULL;
+  cdata->value          = NULL;
 
 }
 
@@ -332,8 +369,8 @@ ClientData* create_new_client_data(int client_socket, Cache cache) {
 
   ClientData* new_cdata = dynalloc(sizeof(ClientData), cache);
 
-  memset(new_cdata->key_size_buffer,0,LENGTH_PREFIX_SIZE);
-  memset(new_cdata->value_size_buffer,0,LENGTH_PREFIX_SIZE);
+  memset(new_cdata->key_size_buffer, 0, LENGTH_PREFIX_SIZE);
+  memset(new_cdata->value_size_buffer, 0, LENGTH_PREFIX_SIZE);
 
   new_cdata->parsing_index = 0;
   new_cdata->parsing_stage = PARSING_COMMAND;
@@ -341,6 +378,9 @@ ClientData* create_new_client_data(int client_socket, Cache cache) {
   new_cdata->socket = client_socket;
 
   new_cdata->cleaning = 0;
+
+  new_cdata->key = NULL;
+  new_cdata->value = NULL;
 
   return new_cdata;
 }
