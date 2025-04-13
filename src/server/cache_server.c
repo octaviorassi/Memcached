@@ -145,7 +145,10 @@ void* working_thread(void* thread_args) {
 void start_server(ServerArgs* server_args) {
 
   ThreadArgs thread_args;
+
   thread_args.server_epoll = epoll_create1(0);
+  if (thread_args.server_epoll < 0) quit("Error: failed to create the epoll instance"); 
+
   thread_args.server_socket = server_args->server_socket;
   thread_args.cache = server_args->cache;
 
@@ -158,8 +161,8 @@ void start_server(ServerArgs* server_args) {
 
   // Al levantarse un thread, podra distinguir si se trata de un intento de conexion al chequear el socket que cargamos en server_data.
   event.data.ptr = &server_data;
-  epoll_ctl(thread_args.server_epoll, EPOLL_CTL_ADD,
-            server_data.socket, &event);
+  if (epoll_ctl(thread_args.server_epoll, EPOLL_CTL_ADD, server_data.socket, &event) < 0)
+    quit("Error: failed to add server socket to the epoll instance");
 
   // Leemos la cantidad de threads a lanzar y los creamos
   int num_threads = server_args->num_threads;
@@ -172,11 +175,15 @@ void start_server(ServerArgs* server_args) {
     threads_args[i] = thread_args;
     threads_args[i].thread_number = i;
     
-    pthread_create(&threads[i], NULL, working_thread, &threads_args[i]);
+    if (pthread_create(&threads[i], NULL, working_thread, &threads_args[i]) != 0)
+      quit("Error: failed to create a thread of the server");
+
   }
 
-  for (int i = 0 ; i < num_threads ; i++)
-    pthread_join(threads[i], NULL);  
+  for (int i = 0 ; i < num_threads ; i++) {
+    if (pthread_join(threads[i], NULL) != 0)
+      quit("Error: failed to join a thread of the server");
+  }
 }
 
 
@@ -191,6 +198,12 @@ int main(int argc, char** argv) { // Sabemos que los argumentos son correctos.
   server_args.server_socket = atoi(argv[1]);
   server_args.num_threads = atoi(argv[2]);
   Cache global_cache = cache_create((HashFunction) kr_hash, server_args.num_threads);
+  
+  if (global_cache == NULL) {
+    printf("[Error] Not enough memory to create the cache\n");
+    abort();
+  }
+
   server_args.cache = global_cache;
 
   start_server(&server_args);
