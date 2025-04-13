@@ -93,11 +93,10 @@ void* hashnode_get_key(HashNode node);
  * @param node Puntero al nodo.
  * @param key El puntero a la nueva clave para el nodo.
  * @param new_key_size El tamaño de la nueva clave del nodo.
- * @param cache La cache a la que pertenece el nodo.
  * 
  * @return 0 si la operacion es exitosa, -1 si no.
  */
-int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache);
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size);
 
 
 /**
@@ -115,11 +114,10 @@ void* hashnode_get_val(HashNode node);
  * @param node Puntero al nodo.
  * @param val El puntero al nuevo valor para el nodo.
  * @param new_val_size El tamaño del nuevo valor del nodo.
- * @param cache La cache a la que pertenece el nodo.
  * 
  * @return 0 si la operacion es exitosa, -1 si no.
  */
-int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache);
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size);
 
 /**
  * @brief Obtiene el tamaño de la clave del nodo.

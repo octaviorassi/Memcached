@@ -126,7 +126,7 @@ void* hashnode_get_key(HashNode node) {
     return node ? node->key : NULL;
 }
 
-int hashnode_set_key(HashNode node, void* key, size_t new_key_size, Cache cache) {
+int hashnode_set_key(HashNode node, void* key, size_t new_key_size) {
 
     if (node == NULL)
         return -1;
@@ -145,7 +145,7 @@ void* hashnode_get_val(HashNode node) {
     return node ? node->val : NULL;
 }
 
-int hashnode_set_val(HashNode node, void* val, size_t new_val_size, Cache cache) {
+int hashnode_set_val(HashNode node, void* val, size_t new_val_size) {
 
     if (node == NULL)
         return -1;

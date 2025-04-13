@@ -1,5 +1,6 @@
 
 #include "cache_server_utils.h"
+#include <assert.h>
 
 #include "../cache/cache.h"
 #include "../helpers/quit.h"
@@ -192,6 +193,7 @@ void start_server(ServerArgs* server_args) {
  */
 int main(int argc, char** argv) { // Sabemos que los argumentos son correctos.
 
+  assert(argc == 3);
   setbuf(stdout, NULL); // Opcional
 
   ServerArgs server_args;

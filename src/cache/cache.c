@@ -148,7 +148,7 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
     cache_stats_allocated_memory_free(cache->stats,
                                       hashnode_get_val_size(node));
 
-    hashnode_set_val(node, val, val_size, cache);
+    hashnode_set_val(node, val, val_size);
 
     cache_stats_allocated_memory_add(cache->stats, val_size);
 
@@ -257,8 +257,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
 
 
 StatsReport cache_report(Cache cache) {
-  if (cache)
-    return cache_stats_report(cache->stats);
+  return cache_stats_report(cache->stats);
 }
 
 ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
