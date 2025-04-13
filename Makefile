@@ -2,7 +2,12 @@
 CC = gcc
 ERLC = erlc
 ERL = erl
-CFLAGS = -Isrc -g
+
+ifeq ($(debug),yes)
+	CFLAGS = -Isrc -Wall -Werror -Wextra -g 
+else
+	CFLAGS = -Isrc -Wall -Werror -Wextra
+endif
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -49,5 +54,6 @@ $(OBJ_DIR)/%.o: src/%.c
 	
 clean:
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@rm $(SRC_DIR)/client/*.beam
 	@echo "All files cleaned!"
 .PHONY: all clean
