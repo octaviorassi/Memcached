@@ -152,7 +152,8 @@ StatsReport cache_stats_report(CacheStats cstats);
  */
 int stats_report_stringify(StatsReport report, char* buf);
 
-void cache_stats_show(CacheStats cstats, char* buf);
+
+void cache_stats_show(CacheStats cstats);
 
 
 /**

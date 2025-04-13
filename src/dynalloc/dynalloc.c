@@ -5,7 +5,7 @@
 #include "../cache/cache.h"
 
 #define DYNALLOC_FAIL_RATE 0
-#define MAX_ATTEMPTS 2
+#define MAX_ATTEMPTS 5
 
 static size_t max(size_t goal, size_t sz) { return sz < goal ? goal : sz; }
 
@@ -31,18 +31,27 @@ void* dynalloc(size_t sz, Cache cache) {
     PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(cache)));
     PRINT("Memory goal: %lu", memory_goal);
 
-    while (total_freed_memory < memory_goal) {
+    int attempts = 0;
 
-        freed_memory = cache_free_up_memory(cache);
+    while (total_freed_memory < memory_goal && attempts < MAX_ATTEMPTS) {
+                
+        freed_memory = cache_free_up_memory(cache, memory_goal - total_freed_memory);
 
         // Si se produjo algun error, directamente retornamos NULL
         if (freed_memory < 0)
             return NULL;
 
+        if (freed_memory == 0) {
+            sched_yield();
+            attempts++;
+        }
+
         total_freed_memory += freed_memory;
     }
 
     PRINT("Memoria liberada correctamente. Total liberado: %lu", total_freed_memory);
+
+    //!! ACA TENDRIAMOS QUE VER SI LLAMAR RECURSIVAMENTE O QUE HACEMOOOO
 
     // Ahora deberiamos poder asignar el bloque siempre.
     return malloc(sz);

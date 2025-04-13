@@ -2,7 +2,12 @@
 CC = gcc
 ERLC = erlc
 ERL = erl
-CFLAGS = -Isrc -g
+
+ifeq ($(debug),yes)
+	CFLAGS = -Isrc -Wall -Werror -Wextra -g 
+else
+	CFLAGS = -Isrc -Wall -Werror -Wextra
+endif
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -19,7 +24,9 @@ OBJS_STARTER = $(filter $(OBJ_DIR)/server/server_starter%.o, $(OBJS)) $(OBJ_DIR)
 
 SERVER  = $(BIN_DIR)/cache_server
 STARTER = $(BIN_DIR)/server 
+
 all: server client
+
 server: $(SERVER) $(STARTER)
 
 client:

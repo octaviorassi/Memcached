@@ -84,12 +84,13 @@ StatsReport cache_report(Cache cache);
 
 
 /**
- *  @brief Libera memoria en la cache eliminando el nodo menos utilizado. 
+ *  @brief Libera memoria en la cache eliminando nodos. Comienza desde los que no fueron accedidos recientemente. Libera hasta un maximo de memoria determinado.
  * 
  *  @param cache La cache donde se liberara memoria.
- *  @return La cantidad de memoria liberada al eliminar la clave y el valor menos utilizados.
+ *  @param memory_goal La cantidad de memoria objetivo a liberar. 
+ *  @return La cantidad de memoria liberada al eliminar. Puede ser menor que el objetivo de memoria a liberar.
  */
-ssize_t cache_free_up_memory(Cache cache);
+ssize_t cache_free_up_memory(Cache cache, size_t memory_goal);
 
 
 /**

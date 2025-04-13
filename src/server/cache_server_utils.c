@@ -217,7 +217,8 @@ int parse_request(ClientData* cdata, Cache cache) {
 
   if (cdata->parsing_stage != PARSING_FINISHED)
     return parse_request(cdata, cache);
-
+  
+  return 0;
 }
 
 int handle_request(ClientData* cdata, Cache cache) {

@@ -119,7 +119,7 @@ int stats_report_stringify(StatsReport report, char* buf) {
 
 
 
-void cache_stats_show(CacheStats cstats, char* buf) { 
+void cache_stats_show(CacheStats cstats) { 
    
     printf("****************** CACHE STATS *******************\n");
     printf("PUTS: " COUNTER_FORMAT "\n", atom_counter_get(cstats->put_counter));
