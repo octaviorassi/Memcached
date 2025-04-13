@@ -60,10 +60,9 @@ static void print_handling_msg(int thread_number) {
  */
 void* working_thread(void* thread_args) {
 
-
   ThreadArgs* thread_args_casted = (ThreadArgs*) thread_args;
 
-  int server_epoll = thread_args_casted->server_epoll;
+  int server_epoll  = thread_args_casted->server_epoll;
   int server_socket = thread_args_casted->server_socket;
   int thread_number = thread_args_casted->thread_number;
   Cache cache = thread_args_casted->cache;
@@ -112,10 +111,11 @@ void* working_thread(void* thread_args) {
       if (parse_request(event_data, cache) < 0) {
         print_error_msg(thread_number);
         drop_client(server_epoll, event_data);
+        continue;
       }
 
       // Si el parseo termino, ejecutamos su pedido
-      else if (event_data->parsing_stage == PARSING_FINISHED) {
+      if (event_data->parsing_stage == PARSING_FINISHED) {
         print_handling_msg(thread_number);
 
         // Si fracaso el envio de la respuesta al cliente, lo droppeamos
@@ -127,9 +127,10 @@ void* working_thread(void* thread_args) {
         // Si no, reiniciamos sus buffers y reconstruimos su evento en el epoll.
         reset_client_data(event_data);
       
-        reconstruct_client_epoll(server_epoll, &event, event_data);
-
       }
+
+      reconstruct_client_epoll(server_epoll, &event, event_data);
+
       // Caso contrario, continua la proxima iteracion.
       
     }
