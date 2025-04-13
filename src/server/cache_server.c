@@ -95,7 +95,16 @@ void* working_thread(void* thread_args) {
 
       // Creamos el epoll_event del cliente y lo cargamos al epoll
       ClientData* new_client_data = create_new_client_data(new_client_socket, cache);
-      construct_new_client_epoll(server_epoll, new_client_data);
+
+      // Si fallo la creacion del nuevo cliente, 
+      if (new_client_data == NULL && new_client_socket >= 0) {
+        // Le cerramos el socket
+        close(new_client_socket);
+      }
+      else {
+        // Si pude crear el cliente, lo cargo al epoll
+        construct_new_client_epoll(server_epoll, new_client_data);
+      }
 
       // Reconstruimos el evento de epoll del servidor
       event.events = EPOLLIN | EPOLLONESHOT;
