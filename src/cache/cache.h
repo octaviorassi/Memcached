@@ -56,7 +56,7 @@ LookupResult cache_get(void* key, size_t key_size, Cache cache);
  *  @param val_size El tamaño del valor.
  *  @param cache La cache objetivo.
  * 
- *  @return 0 en caso de exito, -1 si se produjo un error. 
+ *  @return 0 en caso de insertar un nuevo par clave-valor exitosamente, 1 si la clave ya estaba en la cache y solo se actualizo el valor, -1 si se produjo un error. 
  */
 int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cache);
 

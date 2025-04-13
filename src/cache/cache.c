@@ -10,6 +10,7 @@
 #define BUCKETS_FACTOR 10
 #define ZONES_FACTOR 2
 
+
 struct Cache {
 
   // Hash
@@ -149,7 +150,8 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     
     pthread_rwlock_unlock(lock);
-    return 0;
+
+    return 1;
 
   }
 
