@@ -234,7 +234,7 @@ int handle_request(ClientData* cdata, Cache cache) {
                                  cdata->value, cdata->value_size, cache);
       
       // Si el put fue exitoso, respondemos con OK, si no, con EUNK
-      command = put_status < 0 ? EUNK : OKAY;
+      command = put_status < 0 ? ENOTFOUND : OKAY;
 
       // Si lo que se hizo fue pisar el valor, hay que liberar la memoria de la key, pues queda la anterior
       if (put_status == 1)
@@ -255,7 +255,7 @@ int handle_request(ClientData* cdata, Cache cache) {
       int del_status = cache_delete(cdata->key, cdata->key_size, cache);
 
       command = del_status == 0 ? OKAY :
-               (del_status == 1 ? ENOTFOUND : EUNK);
+               (del_status == 1 ? ENOTFOUND : ENOTFOUND);
 
       // En cualquier caso, quiero liberar el buffer donde guarde la key una vez terminada la operacion.
       if (cdata->key)
