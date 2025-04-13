@@ -152,7 +152,12 @@ StatsReport cache_stats_report(CacheStats cstats);
  */
 int stats_report_stringify(StatsReport report, char* buf);
 
-
+/**
+ *  @brief Imprime en pantalla un resumen de las estadísticas de la cache. 
+ * 
+ *  @param cstats El objeto CacheStats a resumir en pantalla
+ * 
+ */
 void cache_stats_show(CacheStats cstats);
 
 
