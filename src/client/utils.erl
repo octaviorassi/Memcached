@@ -144,7 +144,7 @@ stats_requests(Id, ServersInfo) ->
       Response = utils:recv_bytes(Socket, 1),
 
       case Response of
-        serverError -> io_lib:format("Server ~p: shutdown", [Id]);
+        serverError -> io_lib:format("Server ~p: disconnected", [Id]);
         <<?OK>>     -> 
           <<ValueLength:(?LEN_PREFIX_SIZE_BITS)/big>> = utils:recv_bytes(Socket, (?LEN_PREFIX_SIZE)), 
           BinaryValue = utils:recv_bytes(Socket, ValueLength),
@@ -152,7 +152,7 @@ stats_requests(Id, ServersInfo) ->
           io_lib:format("Server ~p (~s:~p): ~p", [Id, Ip, Port, String])
       end;
       
-    false          -> io_lib:format("Server ~p: shutdown", [Id])
+    false          -> io_lib:format("Server ~p: disconnected", [Id])
   end.
 
 
@@ -184,7 +184,7 @@ create_status_message(TotalKeys, ServersInfo, InitialNumServer) ->
         lists:map(fun(Id) ->
           case lists:keyfind(Id, 3, ServersInfo) of
             {_,_, Id, PutCounter, {Ip, Port}} -> io_lib:format("Server ~p (~s:~p): ~.2f% Keys", [Id, Ip, Port, PutCounter/TotalKeys * 100]);
-            false              -> io_lib:format("Server ~p: shutdown", [Id])
+            false              -> io_lib:format("Server ~p: disconnected", [Id])
           end
         end, IndexList),
 
@@ -204,12 +204,13 @@ is_registered(PidAlias) ->
   end.
 
 
-%% @doc 
-%% @param Sockets
-%% @return 
+%% @doc Dado un listado de sockets y su direccion y puerto, nos devuelve una lista con la inforamcion que iremos llevando de los sockets.
+%% @param Sockets listado de sockets para los cuales queremos crear su lista de informacion.
+%% @return Una lista con la informacion asociada a los sockets.
+-spec create_servers_info([{gen_tcp:socket(), server_address()}]) -> [server_info()].
 create_servers_info(Sockets) ->
-  [#serverInfo{socket = Socket, id = Id, keyCounter = 0, address = ServerInfo} ||
-             {{Socket, ServerInfo }, Id} <- lists:zip(Sockets, lists:seq(1, length(Sockets)))].
+  [#serverInfo{ socket = Socket, id = Id, keyCounter = 0, address = ServerInfo} ||
+             {{ Socket, ServerInfo }, Id} <- lists:zip(Sockets, lists:seq(1, length(Sockets)))].
 
 
 %% @doc Dada una lista de sockets, un socket objetivo, y una lista de la informacion de los servidores disponibles, reemplaza cada aparicion del socket objetivo en la lista por un socket de uno de los servers disponibles, elegido de manera aleatoria.
@@ -234,6 +235,11 @@ replace_sockets([Socket | Sockets], ServerSocket, ServersInfo) ->
   end.
 
 
+%% @doc Dado un socket de un servidor y uan lista de informacion de servidores, elimina de la lista aquella informacion de servidor que coincida con el socket pasado.
+%% @param ServerSocket El socket de una informacion de servidor que queremos eliminar.
+%% @param ServersInfo La lista de informacion de servidores de la cual queremos eliminar aquella que tenga el socket indicado.
+%% @return Una nueva lista de informacion de servidores sin las que tenian el socket pasado.
+-spec delete_info(gen_tcp:socket(), [server_info()]) -> [server_info()].
 delete_info(_, []) -> [];
 delete_info(ServerSocket, [ServerInfo | ServersInfo]) ->
   case ServerSocket == ServerInfo#serverInfo.socket of
@@ -256,7 +262,6 @@ rebalance_servers(ServersTable, ServerSocket) ->
   ServersInfo      = ServersTable#serversTable.servers_info, 
 
   NewServersInfo = delete_info(ServerSocket, ServersInfo), % Elimino la informacion del servidor 
-  io:fwrite("~p~n", [NewServersInfo]),
   RebalancedServers   = replace_sockets(Servers, ServerSocket, NewServersInfo), % Rebalanceo la carga
 
   % Creo la nueva tabla de servidores
@@ -266,7 +271,6 @@ rebalance_servers(ServersTable, ServerSocket) ->
                                    servers_info = NewServersInfo,
                                    identifier = Id },
   NewServersTable.
-
 
 
 %% @doc Dada una clave y un ServersTable con la informacion de los servidores, obtiene el bucket (servidor) asociado a la clave a traves de la funcion hash.
@@ -292,6 +296,12 @@ close_server_sockets(ServersInfo) ->
   lists:foreach(fun({ServerSocket,_,_}) -> gen_tcp:close(ServerSocket) end, ServersInfo).
 
 
+%% @doc Dada una informacion de servidor, modifica el contador que lleva por la cantidad K unicamente si coincide con el socket pasado.
+%% @param ServerInfo informacion de servidores para la cual queremos modificar su contador, si es que coincide con el socket pasado.
+%% @param Socket es aquel al cual le queremos modificar el contador.
+%% @param K es el valor por el cual queremos modificar el contador.
+%% @return Una nueva informacion de servidor (con el contador modificado por K) si el socket era el correto, si no la misma informacion de servidor.
+-spec alter_server_info_counter(server_info(), gen_tcp:socket(), non_neg_integer()) -> server_info().
 alter_server_info_counter(ServerInfo, Socket, K) ->
   case ServerInfo#serverInfo.socket == Socket of
       true -> #serverInfo{socket = Socket,
@@ -302,6 +312,12 @@ alter_server_info_counter(ServerInfo, Socket, K) ->
   end.
 
 
+%% @doc Dada una tabla de servidores, un socket y un valor K, intenta modificar el contador del socket pasado (de la lista de de servidores) por dicha cantidad.
+%% @param ServersTable tabla de servidores para la cual queremos modificar el contador de uno de sus sockets.
+%% @param Socket es aquel al cual le queremos modificar el contador.
+%% @param K es el valor por el cual queremos modificar el contador.
+%% @return Una nuevas tablas de servidores, con el contador asociado al socket indicado modificado.
+-spec modify_key_counter(servers_table(), gen_tcp:socket(), non_neg_integer()) -> servers_table().
 modify_key_counter(ServersTable, Socket, K) ->
   ServersInfo = ServersTable#serversTable.servers_info,
   NewServersInfo = lists:map(fun(ServerInfo) -> alter_server_info_counter(ServerInfo, Socket, K) end, ServersInfo),
@@ -312,4 +328,3 @@ modify_key_counter(ServersTable, Socket, K) ->
                                    identifier = ServersTable#serversTable.identifier,
                                    servers_info = NewServersInfo },
   NewServersTable.
-

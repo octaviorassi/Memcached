@@ -99,17 +99,19 @@ get(Key) ->
     Response -> Response
   end.
 
-%% @doc Obtiene las estadisticas 
-%% @return La respuesta del cliente, que 
-status() -> % Status del cliente, cuantos puts hizo a cada server
+%% @doc Obtiene e imprime de las estadisticas que el cliente lleva localmente.
+%% @return ok
+-spec status() -> ok.
+status() -> 
   client ! { status, self() },
   
   receive 
     Response -> io:fwrite(Response), io:fwrite("~n")
   end.
 
-%% @doc Obtiene las estadisticas de los servidores a los que el cliente se encuentra conectado.
-%% @return La respuesta del cliente, que nos muestra un mensaje
+%% @doc Obtiene e imprime las estadisticas de los servidores a los que el cliente se encuentra conectado.
+%% @return ok.
+-spec stats() -> ok.
 stats() ->
   client ! {stats, self() },
 
@@ -118,10 +120,8 @@ stats() ->
   end.
 
 
-
-
 %% @doc Dada la estructura con la informacion de los servidores memcached corriendo, recibe los pedidos del cliente y los responde indefinidamente, o hasta que se haga un pedido de cierre.
-%% @param ServersTable La estructura con informacion de los servidores memcached corriendo.
+%% @param ServersTable La estructura con la informacion necesario para que el cliente pueda ejecutarse.
 -spec client(servers_table()) -> term().
 client(ServersTable) ->
 
