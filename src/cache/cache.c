@@ -153,6 +153,9 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   }
 
+  cache_stats_allocated_memory_add(cache->stats, key_size);
+  cache_stats_allocated_memory_add(cache->stats, val_size);
+
   // La clave no estaba en la cache, la insertamos.
   node = hashnode_create(key, key_size, val, val_size, cache);
   if (node == NULL) {

@@ -7,7 +7,7 @@
 
 
 // Macro para debugging global
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG == 1
     #define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
 #else

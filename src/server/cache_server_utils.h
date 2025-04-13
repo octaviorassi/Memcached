@@ -22,28 +22,40 @@
 #include "../helpers/quit.h"
 
 /**
- *  @brief Lee hasta `size` bytes del `socket` en `message_buffer` actualizando acordemente el indice de parseo del `ClientData`.
+ *  @brief Lee hasta `size` bytes del `client` en `message_buffer` actualizando acordemente el indice de parseo del `ClientData`.
  * 
- *  @param socket File descriptor del socket donde recibiremos bytes.
+ *  @param[out] client Estructura de datos del cliente. 
  *  @param message_buffer Buffer de lectura.
  *  @param size Cantidad maxima de bytes a leer.
- *  @param[out] cdata Estructura de datos del cliente. 
  *  
  *  @return La cantidad de bytes efectivamente leidos, o -1 si se produjo un error.
  */
-ssize_t recv_socket(int socket, char* message_buffer, int size, ClientData* cdata);
+ssize_t recv_client(ClientData* client, char* message_buffer, int size);
+
 
 
 /**
- *  @brief Escribe `size` bytes del mensaje `message` al `socket` objetivo.
+ *  @brief Consume hasta `size` bytes del `client` actualizando acordemente el indice de parseo del `ClientData`. No guarda la informacion.
  * 
- *  @param socket File descriptor del socket a escribir.
+ *  @param[out] client Estructura de datos del cliente. 
+ *  @param size Cantidad maxima de bytes a consumir.
+ *  
+ *  @return La cantidad de bytes efectivamente consumidos, o -1 si se produjo un error.
+ */
+ssize_t clean_socket(ClientData* client, int size);
+
+
+
+/**
+ *  @brief Escribe `size` bytes del mensaje `message` al `client` objetivo.
+ * 
+ *  @param client Estructura del cliente a escribir.
  *  @param message Buffer con el contenido del mensaje.
  *  @param size Cantidad de bytes a escribir.
  * 
  *  @return La cantidad de bytes enviados, que es -1 si se produjo un error.
  */
-ssize_t send_socket(int socket, char* message, int size);
+ssize_t send_client(ClientData* client, char* message, int size);
 
 /**
  *  @brief Parsea el mensaje proveniente del cliente asociado al `data` de acuerdo a su parsing stage. Este parseo siempre es total; en caso de recibirse un mensaje incompleto, la informacion del cliente se actualiza y se vuelve a invocar la funcion recursivamente hasta que se complete el mensaje o se produza un error.

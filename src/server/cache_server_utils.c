@@ -5,8 +5,41 @@
 #include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
 
 // ? Problema: yo quiero que solo vea las funciones que expone la cache, no quiero que cache_utils pueda ver las funciones que expone cache_stats a cache. 
+#define TRASH_BUFFER_SIZE 100
 
-ssize_t recv_socket(int socket, char* message_buffer, int size, ClientData* cdata) {
+
+ssize_t clean_socket(ClientData* client, int size) {
+
+  int socket = client->socket;
+
+  ssize_t total_bytes_received = 0;
+  ssize_t bytes_received;
+
+  char buffer[TRASH_BUFFER_SIZE];
+
+  do {
+
+    bytes_received = recv(socket, buffer, TRASH_BUFFER_SIZE, 0);
+
+    total_bytes_received += bytes_received;
+
+  } while (bytes_received > 0 && total_bytes_received < size);
+
+  if (bytes_received < 0) {
+    perror("Error: failed to call recv bytes.");;
+    return -1;
+  }
+
+  client->parsing_index += total_bytes_received;
+
+  return total_bytes_received;
+}
+
+
+
+ssize_t recv_client(ClientData* client, char* message_buffer, int size) {
+
+  int socket = client->socket;
 
   ssize_t total_bytes_received = 0;
   ssize_t bytes_received;
@@ -25,13 +58,15 @@ ssize_t recv_socket(int socket, char* message_buffer, int size, ClientData* cdat
     return -1;
   }
 
-  cdata->parsing_index += total_bytes_received;
+  client->parsing_index += total_bytes_received;
 
   return total_bytes_received;
 }
 
 
-ssize_t send_socket(int socket, char* message, int size) {
+ssize_t send_client(ClientData* client, char* message, int size) {
+
+  int socket = client->socket;
 
   ssize_t total_bytes_sent = 0; 
   ssize_t bytes_sent;
@@ -66,7 +101,7 @@ int parse_request(ClientData* cdata, Cache cache) {
 
     case PARSING_COMMAND:
       
-      if (recv_socket(cdata->socket, &cdata->command, 1, cdata) < 0) return -1; 
+      if (recv_client(cdata, &cdata->command, 1) < 0) return -1; 
       
       // No se termino de parsear el comando
       if (cdata->parsing_index < 1) return 0; 
@@ -83,9 +118,9 @@ int parse_request(ClientData* cdata, Cache cache) {
 
     case PARSING_KEY_LEN:
 
-      if (recv_socket(cdata->socket,
+      if (recv_client(cdata,
                       cdata->key_size_buffer + cdata->parsing_index,
-                      LENGTH_PREFIX_SIZE - cdata->parsing_index, cdata) < 0) return -1;
+                      LENGTH_PREFIX_SIZE - cdata->parsing_index) < 0) return -1;
 
       if (cdata->parsing_index < LENGTH_PREFIX_SIZE) return 0;
 
@@ -93,21 +128,26 @@ int parse_request(ClientData* cdata, Cache cache) {
       
       cdata->key = dynalloc(cdata->key_size, cache); 
       if (cdata->key == NULL) {
-        // Si falla la asignacion de memoria, marcamos el comando como EBIG y el stage pasa a ser terminado.
+        // Si falla la asignacion de memoria, marcamos el comando como EBIG.
         cdata->command = EBIG;
-        cdata->parsing_stage = PARSING_FINISHED;
+        cdata->cleaning = 1;
       }
-      else {
-        cdata->parsing_stage = PARSING_KEY;
-        cdata->parsing_index = 0;
-      }      
+
+      cdata->parsing_stage = PARSING_KEY;
+      cdata->parsing_index = 0;
+      
       break;
 
     case PARSING_KEY:
+     
+      if (cdata->cleaning){
+        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) return -1;
+      } 
 
-      if (recv_socket(cdata->socket,
-                      cdata->key + cdata->parsing_index,
-                      cdata->key_size - cdata->parsing_index, cdata) < 0) return -1;
+      else if (recv_client(cdata, cdata->key + cdata->parsing_index,
+                           cdata->key_size - cdata->parsing_index) < 0) return -1;
+
+
 
       if (cdata->parsing_index < cdata->key_size) return 0;
 
@@ -119,9 +159,9 @@ int parse_request(ClientData* cdata, Cache cache) {
 
     case PARSING_VALUE_LEN:
 
-      if (recv_socket(cdata->socket,
+      if (recv_client(cdata,
                       cdata->value_size_buffer + cdata->parsing_index,
-                      LENGTH_PREFIX_SIZE - cdata->parsing_index, cdata) < 0) return -1;
+                      LENGTH_PREFIX_SIZE - cdata->parsing_index) < 0) return -1;
 
       if (cdata->parsing_index < LENGTH_PREFIX_SIZE) return 0;
 
@@ -132,18 +172,21 @@ int parse_request(ClientData* cdata, Cache cache) {
         // Analogo al caso de fallar en key, pero libero la memoria
         free(cdata->key);
         cdata->command = EBIG;
-        cdata->parsing_stage = PARSING_FINISHED;
+        cdata->cleaning = 1;
       }
-      else {
-        cdata->parsing_stage = PARSING_VALUE;
-        cdata->parsing_index = 0;
-      }
+
+      cdata->parsing_stage = PARSING_VALUE;
+      cdata->parsing_index = 0;
       break;
 
     case PARSING_VALUE:
       
-      if (recv_socket(cdata->socket, cdata->value + cdata->parsing_index,
-                      cdata->value_size - cdata->parsing_index, cdata) < 0) return -1;
+      if (cdata->cleaning){
+        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) return -1;
+      } 
+
+      else if (recv_client(cdata, cdata->value + cdata->parsing_index,
+                      cdata->value_size - cdata->parsing_index) < 0) return -1;
 
       if (cdata->parsing_index < cdata->value_size) return 0;
 
@@ -176,7 +219,7 @@ int handle_request(ClientData* cdata, Cache cache) {
       // Si el put fue exitoso, respondemos con OK, si no, con EUNK
       command = put_status == 0 ? OKAY : EUNK;
 
-      if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+      if (send_client(cdata, &command, 1) < 0) return -1;
 
       break;
   
@@ -187,7 +230,7 @@ int handle_request(ClientData* cdata, Cache cache) {
       command = del_status == 0 ? OKAY :
                (del_status == 1 ? ENOTFOUND : EUNK);
 
-      if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+      if (send_client(cdata, &command, 1) < 0) return -1;
       
       break;
   
@@ -202,16 +245,16 @@ int handle_request(ClientData* cdata, Cache cache) {
         size_t size = ntohl(lookup_result_get_size(lr));
         memcpy(length_prefix_buffer, &size, LENGTH_PREFIX_SIZE);
 
-        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
-        if (send_socket(cdata->socket, length_prefix_buffer, LENGTH_PREFIX_SIZE) < 0) return -1;
-        if (send_socket(cdata->socket,
+        if (send_client(cdata, &command, 1) < 0) return -1;
+        if (send_client(cdata, length_prefix_buffer, LENGTH_PREFIX_SIZE) < 0) return -1;
+        if (send_client(cdata,
                         lookup_result_get_value(lr),
                         lookup_result_get_size(lr)) < 0) return -1;
       }
 
       else {
         command = ENOTFOUND;
-        if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+        if (send_client(cdata, &command, 1) < 0) return -1;
       }
       
       break;
@@ -233,9 +276,9 @@ int handle_request(ClientData* cdata, Cache cache) {
       memcpy(length_prefix_buffer, &size, LENGTH_PREFIX_SIZE);
 
       // Enviamos el comando el mensaje
-      send_socket(cdata->socket, &command, 1);              // Mando STATS 
-      send_socket(cdata->socket, length_prefix_buffer, LENGTH_PREFIX_SIZE);    // Prefijo longitud
-      send_socket(cdata->socket, report_buffer, report_len);  // String del report
+      send_client(cdata, &command, 1);              // Mando STATS 
+      send_client(cdata, length_prefix_buffer, LENGTH_PREFIX_SIZE);    // Prefijo longitud
+      send_client(cdata, report_buffer, report_len);  // String del report
 
       break;
     }
@@ -243,7 +286,7 @@ int handle_request(ClientData* cdata, Cache cache) {
     case EBIG:
 
       command = EBIG;
-      if (send_socket(cdata->socket, &command, 1) < 0) return -1;
+      if (send_client(cdata, &command, 1) < 0) return -1;
 
       break;
   
@@ -258,6 +301,7 @@ void reset_client_data(ClientData* cdata) {
 
   cdata->parsing_index = 0;
   cdata->parsing_stage = PARSING_COMMAND;
+  cdata->cleaning = 0;
 
 }
 
@@ -295,6 +339,8 @@ ClientData* create_new_client_data(int client_socket, Cache cache) {
   new_cdata->parsing_stage = PARSING_COMMAND;
 
   new_cdata->socket = client_socket;
+
+  new_cdata->cleaning = 0;
 
   return new_cdata;
 }

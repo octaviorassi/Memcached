@@ -70,6 +70,8 @@ typedef struct {
   int parsing_index;
   ParsingStage parsing_stage;
 
+  int cleaning;
+
 } ClientData;
 
 
