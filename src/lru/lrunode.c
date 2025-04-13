@@ -27,7 +27,6 @@ LRUNode lrunode_create(Cache cache) {
 
 }
 
-// ! no hace falta usar la interfaz dentro de lrunode.c realmente xd
 int lru_node_is_clean(LRUNode node) {
     if  (node == NULL) return 1;
     return  node->prev == NULL &&

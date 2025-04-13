@@ -88,7 +88,7 @@ StatsReport cache_report(Cache cache);
  * 
  *  @param cache La cache donde se liberara memoria.
  *  @param memory_goal La cantidad de memoria objetivo a liberar. 
- *  @return La cantidad de memoria liberada al eliminar. Puede ser menor que el objetivo de memoria a liberar.
+ *  @return La cantidad de memoria liberada al eliminar, que puede ser menor que el objetivo de memoria a liberar, o -1 si se produjo un error.
  */
 ssize_t cache_free_up_memory(Cache cache, size_t memory_goal);
 

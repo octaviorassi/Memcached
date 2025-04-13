@@ -59,7 +59,6 @@ LRUNode lru_queue_set_most_recent(LRUNode node, LRUQueue q) {
    *  III.  El mas reciente de la cola pasa a ser node.
    *  IV.   El siguiente de node es siempre NULL.
    */
-
   lrunode_set_prev(node, q->most_recent);
   lrunode_set_next(q->most_recent, node); 
 

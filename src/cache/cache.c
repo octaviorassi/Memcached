@@ -281,6 +281,8 @@ ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
     // Y obtenemos su zona    
     pthread_rwlock_t* zone_lock = cache_get_zone_mutex(buck_num, cache);
 
+    // Guardamos las referencias a su siguiente y a su hashnode asociado pues, si obtenemos el lock de este nodo, lo destruiremos y las perderemos.
+    HashNode hashnode = lrunode_get_hash_node(lru_last_node);
     LRUNode next_node = lrunode_get_next(lru_last_node);
 
     // Si el zone_lock es NULL, se produjo algun error al pedirlo.
@@ -289,14 +291,10 @@ ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
       continue;
     }
 
-    // Guardamos las referencias a su siguiente y a su hashnode asociado pues, si obtenemos el lock de este nodo, lo destruiremos y las perderemos.
-    HashNode hashnode = lrunode_get_hash_node(lru_last_node);
-    
-    if (pthread_rwlock_trywrlock(zone_lock) == 0) { // Obtuvimos el lock
+    // Intentamos lockear la zona    
+    if (pthread_rwlock_trywrlock(zone_lock) == 0) { 
 
-      // printf("OBTUVE LOCK ZONE %d (%ld)\n",buck_num % cache->num_zones, pthread_self());
-
-      // Eliminamos al LRUNode de la LRUQueue
+      // Si logramos tomar el lock, eliminamos al LRUNode de la LRUQueue
       lru_queue_node_clean(lru_last_node, cache->queue);
       lrunode_destroy(lru_last_node);
 
@@ -312,26 +310,22 @@ ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
       
       total_freed_memory += freed_memory;
 
-      cache_stats_allocated_memory_free(cache->stats, freed_memory);
-
-      // PRINT("Expulsamos al nodo con clave %i del bucket %i", hashnode_get_key(hashnode), buck_num);
-
       hashnode_destroy(hashnode);
     
+      // Soltamos el lock
       pthread_rwlock_unlock(zone_lock);
       
-      // PRINT("SUELTO LOCK ZONE %d (%ld)\n", buck_num % cache->num_zones, pthread_self());
-
+      // Y actualizamos las estadisticas
+      cache_stats_allocated_memory_free(cache->stats, freed_memory);
       cache_stats_evict_counter_inc(cache->stats);
-
-      //!! ACA CREO QUE DEBERIA BAJAR EL NUMERO DE KEYS EN LA CACHE
       cache_stats_key_counter_dec(cache->stats);
+
     }
 
     lru_last_node = next_node;
 
   }
-  // PRINT("SUELTO EL LOCK DE LA COLA %d\n", pthread_self());
+
   lru_queue_unlock(cache->queue);
 
   return freed_memory;
@@ -344,6 +338,7 @@ CacheStats cache_get_cstats(Cache cache) {
     return cache->stats;
   return NULL;
 }
+
 
 void cache_destroy(Cache cache) { 
 
@@ -363,9 +358,6 @@ void cache_destroy(Cache cache) {
   free(cache);
 
 }
-
-
-
 
 
 /* Funciones de utilidad no exportadas */
@@ -497,8 +489,6 @@ static unsigned int cache_get_bucket_number(void* key, size_t size, Cache cache)
 static pthread_rwlock_t* cache_get_zone_mutex(unsigned int bucket_number, Cache cache) {
   if (cache == NULL)
     return NULL;
-
-  printf("%d\n", bucket_number % cache->num_zones);
 
   return cache->zone_locks[bucket_number % cache->num_zones];
 

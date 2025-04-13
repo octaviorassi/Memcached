@@ -7,11 +7,6 @@
 #include "../dynalloc/dynalloc.h"
 #include "../helpers/results.h"
 
-/** TODO:
- *  Dudas sobre la estructura: 
- *  1.  Hacer chequeos o no en los gets. Por ejemplo, si el puntero es nulo, que devuelvo en get_key? Vale la pena?
- */
-
 // Forward-declaration de LRUNode para evitar incluirla
 typedef struct LRUNode* LRUNode;
 

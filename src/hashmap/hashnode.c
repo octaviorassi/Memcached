@@ -30,7 +30,6 @@ HashNode hashnode_create(void* key, size_t key_size, void* val, size_t val_size,
 
     memset(node, 0, sizeof(struct HashNode));
 
-    // ? cambiar esto? capaz hacer una funcion en lrunode.c que se encargue
     LRUNode prio = lrunode_create(cache);
     if (prio == NULL) {
         free(node);

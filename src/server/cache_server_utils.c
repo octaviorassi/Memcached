@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "cache_server_utils.h"
 #include "cache_server_models.h"
-#include "../cache/cache.h" // ! No se si esta bien incluir esto o puede generar problemas de dependencias.
+#include "../cache/cache.h" 
 
 #define TRASH_BUFFER_SIZE 100
 
@@ -32,7 +32,6 @@ ssize_t clean_socket(ClientData* client, int size) {
 
   return total_bytes_received;
 }
-
 
 
 ssize_t recv_client(ClientData* client, char* message_buffer, int size) {
