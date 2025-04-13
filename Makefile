@@ -24,7 +24,9 @@ OBJS_STARTER = $(filter $(OBJ_DIR)/server/server_starter%.o, $(OBJS)) $(OBJ_DIR)
 
 SERVER  = $(BIN_DIR)/cache_server
 STARTER = $(BIN_DIR)/server 
+
 all: server client
+
 server: $(SERVER) $(STARTER)
 
 client:
@@ -54,6 +56,5 @@ $(OBJ_DIR)/%.o: src/%.c
 	
 clean:
 	@rm -rf $(OBJ_DIR) $(BIN_DIR)
-	@rm $(SRC_DIR)/client/*.beam
 	@echo "All files cleaned!"
 .PHONY: all clean
