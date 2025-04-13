@@ -1,5 +1,5 @@
 -module(client).
--export([start/1, put/2, del/1, get/1, stats/0, status/0, startDefault/0, quit/0, client/1]).
+-export([start/1, put/2, del/1, get/1, stats/0, status/0, startDefault/0, quit/0]).
 
 -include("protocol.hrl").
 -include("common.hrl").
