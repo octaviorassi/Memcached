@@ -120,20 +120,17 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   if (cache == NULL)
     return -1;
 
-  // Calculamos el bucket number, lockeamos su zona y obtenemos el bucket.
+  // Calculamos el bucket number
   unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
   
-  // printf("%d\n", bucket_number);
-
-  
+  // Lockeamos su zona
   pthread_rwlock_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
     return -1;
   
   pthread_rwlock_wrlock(lock);
   
-  // printf("TENGO EL LOCK DE ESCRITUZA DE ZONA %d (%ld)\n", bucket_number % cache->num_zones, pthread_self());
-  
+  // Y accedemos al bucket
   HashNode bucket = cache->buckets[bucket_number];
 
   // Buscamos el nodo asociado a la clave en el bucket correspondiente.
@@ -145,27 +142,26 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
   // Si la clave ya pertenecia a la cache, solo actualizamos valor y prioridad.
   if (node != NULL) {
 
+    // Setteamos el nuevo valor, liberando la memoria liberada en el proceso
+    hashnode_set_val(node, val, val_size);
+
+    // Restamos la memoria del valor anteior
     cache_stats_allocated_memory_free(cache->stats,
                                       hashnode_get_val_size(node));
 
-    hashnode_set_val(node, val, val_size);
-
+    // Sumamos la memoria de la nueva clave
     cache_stats_allocated_memory_add(cache->stats, val_size);
 
+    // Y actualizamos la prioridad del nodo
     lru_queue_set_most_recent(hashnode_get_prio(node), cache->queue);
     
-    // printf("SUELTO EL LOCK DE ESCRITUZA DE ZONA %d (%ld)\n", bucket_number % cache->num_zones, pthread_self());
-
     pthread_rwlock_unlock(lock);
 
     return 1;
 
   }
 
-  cache_stats_allocated_memory_add(cache->stats, key_size);
-  cache_stats_allocated_memory_add(cache->stats, val_size);
-
-  // La clave no estaba en la cache, la insertamos.
+  // Si la clave no estaba en la cache, la insertamos.
   node = hashnode_create(key, key_size, val, val_size, cache);
   if (node == NULL) {
     pthread_rwlock_unlock(lock);
@@ -190,15 +186,12 @@ int cache_put(void* key, size_t key_size, void* val, size_t val_size, Cache cach
 
   pthread_rwlock_unlock(lock);
 
+  // Sumamos la memoria del nuevo nodo y contamos la nueva key
+  cache_stats_allocated_memory_add(cache->stats, key_size);
+  cache_stats_allocated_memory_add(cache->stats, val_size);
+
   cache_stats_key_counter_inc(cache->stats);
   
-  /*
-  PRINT("key_size, val_size, sum: %lu - %lu - %lu", key_size, val_size, key_size + val_size);
-  PRINT("Allocated memory pre-put: %lu", cache_stats_get_allocated_memory(cache->stats));
-  cache_stats_allocated_memory_add(cache->stats, key_size + val_size);
-  PRINT("Allocated memory post-put: %lu", cache_stats_get_allocated_memory(cache->stats));
-  */
-
   return 0;
 
 }
@@ -212,13 +205,14 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   // Tomamos el lock asociado al nodo a eliminar
   unsigned int bucket_number = cache_get_bucket_number(key, key_size, cache);
 
+  // Obtenemos su zona
   pthread_rwlock_t* lock = cache_get_zone_mutex(bucket_number, cache);
   if (lock == NULL)
     return -1;
 
   pthread_rwlock_wrlock(lock);
 
-  // Obtenemos su bucket y lo buscamos dentro de el.
+  // Ahora con el lock, accedemos a su bucket y lo buscamos dentro de el.
   HashNode bucket = cache->buckets[bucket_number];
   HashNode node = hashnode_lookup_node(key, key_size, bucket);
 
@@ -248,6 +242,7 @@ int cache_delete(void* key, size_t key_size,  Cache cache) {
   
   pthread_rwlock_unlock(lock);
 
+  // Decrementamos la cantidad de keys y la cantidad de memoria asignada
   cache_stats_key_counter_dec(cache->stats);
   cache_stats_allocated_memory_free(cache->stats, allocated_memory);
 
@@ -268,32 +263,33 @@ ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
   if (lru_queue_lock(cache->queue) != 0)
     return -1;
   
-  // PRINT("TENGO EL LOCK DE LA COLA %d\n", pthread_self());
-  
   LRUNode lru_last_node = lru_queue_get_least_recent(cache->queue);
 
-  // La LRU estaba vacia
+  // Si la LRU estaba vacia, devolvemos el lock y retornamos un error, pues no deberia estar liberandose memoria si no hay elementos por eliminar.
   if (lru_last_node == NULL) {
     lru_queue_unlock(cache->queue);
     return -1;
   }
+
   size_t freed_memory = 0;
   size_t total_freed_memory = 0;
   while (lru_last_node != NULL && total_freed_memory < memory_goal) {
 
+    // Obtenemos el numero de bucket del ultimo nodo
     unsigned int buck_num = lrunode_get_bucket_number(lru_last_node);
     
-    // printf("%d\n", buck_num);
-    
+    // Y obtenemos su zona    
     pthread_rwlock_t* zone_lock = cache_get_zone_mutex(buck_num, cache);
 
-    // Si el zone_lock es NULL, se produjo algun error al pedirlo.
-    if (zone_lock == NULL) continue;
+    LRUNode next_node = lrunode_get_next(lru_last_node);
 
-    HashNode bucket = cache->buckets[buck_num];
+    // Si el zone_lock es NULL, se produjo algun error al pedirlo.
+    if (zone_lock == NULL) {
+      lru_last_node = next_node;
+      continue;
+    }
 
     // Guardamos las referencias a su siguiente y a su hashnode asociado pues, si obtenemos el lock de este nodo, lo destruiremos y las perderemos.
-    LRUNode next_node = lrunode_get_next(lru_last_node);
     HashNode hashnode = lrunode_get_hash_node(lru_last_node);
     
     if (pthread_rwlock_trywrlock(zone_lock) == 0) { // Obtuvimos el lock
@@ -305,6 +301,7 @@ ssize_t cache_free_up_memory(Cache cache, size_t memory_goal) {
       lrunode_destroy(lru_last_node);
 
       // Y lo eliminamos del hashmap.
+      HashNode bucket = cache->buckets[buck_num];
       if (bucket == hashnode)
         cache->buckets[buck_num] = hashnode_get_next(hashnode);
       
