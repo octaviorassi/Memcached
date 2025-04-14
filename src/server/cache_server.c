@@ -211,7 +211,7 @@ int main(int argc, char** argv) { // Sabemos que los argumentos son correctos.
   Cache global_cache = cache_create((HashFunction) kr_hash, server_args.num_threads);
   
   if (global_cache == NULL) {
-    printf("[Error] Not enough memory to create the cache\n");
+    fprintf(stderr,"[Error] Not enough memory to create the cache\n");
     abort();
   }
 
