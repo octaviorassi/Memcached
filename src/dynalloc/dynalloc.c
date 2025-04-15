@@ -5,7 +5,8 @@
 #include "../cache/cache.h"
 
 #define DYNALLOC_FAIL_RATE 0
-#define MAX_ATTEMPTS 5
+#define MAX_ATTEMPTS 2
+#define SIZE_GOAL_FACTOR 2
 
 static size_t max(size_t goal, size_t sz) { return sz < goal ? goal : sz; }
 
@@ -21,10 +22,10 @@ void* dynalloc(size_t sz, Cache cache) {
 
     PRINT("No hay memoria suficiente. Debemos liberar memoria.");
 
-    // Liberaremos el maximo entre el 20% de la memoria ocupada actual y el size del bloque a asignar
+    // Liberaremos el maximo entre el 20% de la memoria ocupada actual y el size del bloque a asignar por un size_factor
     size_t memory_goal = max(cache_stats_get_allocated_memory(
                              cache_get_cstats(cache)) / 5,
-                             sz);
+                             sz * SIZE_GOAL_FACTOR);
     size_t total_freed_memory = 0;
     ssize_t freed_memory;
 
@@ -51,9 +52,8 @@ void* dynalloc(size_t sz, Cache cache) {
 
     PRINT("Memoria liberada correctamente. Total liberado: %lu", total_freed_memory);
 
-    //!! ACA TENDRIAMOS QUE VER SI LLAMAR RECURSIVAMENTE O QUE HACEMOOOO
-
-    // Ahora deberiamos poder asignar el bloque siempre.
+    // Tanto si se logro el objetivo de memoria como si se agotaron los intentos, devolvemos directamente malloc.
+    // Si no alcanza la memoria, aceptamos que devuelva NULL pues la cache debe estar sobrecargada de pedidos. 
     return malloc(sz);
 
 }
