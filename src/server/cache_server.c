@@ -124,6 +124,10 @@ void* working_thread(void* thread_args) {
         continue;
       }
 
+      // Si termine de parsear y estaba limpieando el socket, entonces tengo que devolver EBIG.
+      if (event_data->parsing_stage == PARSING_FINISHED && event_data->cleaning)
+        event_data->command = EBIG;
+
       // Si el parseo termino, ejecutamos su pedido
       if (event_data->parsing_stage == PARSING_FINISHED) {
         print_handling_msg(thread_number);

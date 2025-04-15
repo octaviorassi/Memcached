@@ -12,14 +12,20 @@ ssize_t clean_socket(ClientData* client, int size) {
 
   ssize_t total_bytes_received = 0;
   ssize_t bytes_received;
+  ssize_t bytes_to_receive;
 
   char buffer[TRASH_BUFFER_SIZE];
 
   do {
 
-    bytes_received = recv(socket, buffer, TRASH_BUFFER_SIZE, 0);
+    bytes_to_receive = size < TRASH_BUFFER_SIZE ? size : TRASH_BUFFER_SIZE;
+
+
+    bytes_received = recv(socket, buffer, bytes_to_receive, 0);
 
     total_bytes_received += bytes_received;
+
+    size = size - bytes_received;
 
   } while (bytes_received > 0 && total_bytes_received < size);
 
@@ -151,14 +157,8 @@ int parse_request(ClientData* cdata, Cache cache) {
 
       if (cdata->parsing_index < cdata->key_size) return 0;
 
-      if (cdata->command == PUT) {
-        cdata->parsing_stage = PARSING_VALUE_LEN;
-      }
-      else {
-        cdata->parsing_stage = PARSING_FINISHED;
-        if (cdata->cleaning) 
-          cdata->command = EBIG;
-      }
+      cdata->parsing_stage =  cdata->command == PUT ?
+                              PARSING_VALUE_LEN : PARSING_FINISHED;
 
       cdata->parsing_index = 0;
 
@@ -169,7 +169,9 @@ int parse_request(ClientData* cdata, Cache cache) {
       if (recv_client(cdata,
                       cdata->value_size_buffer + cdata->parsing_index,
                       LENGTH_PREFIX_SIZE - cdata->parsing_index) < 0) {
-        free(cdata->key);
+        
+        if (!cdata->cleaning) free(cdata->key);
+
         return -1;
       }
 
@@ -186,9 +188,7 @@ int parse_request(ClientData* cdata, Cache cache) {
         if (cdata->value == NULL) {
           // Analogo al caso de fallar en key, pero libero la memoria de key
           free(cdata->key);
-          cdata->command = EBIG;
           cdata->cleaning = 1;
-
         }
 
       }
@@ -201,12 +201,12 @@ int parse_request(ClientData* cdata, Cache cache) {
     case PARSING_VALUE:
       
       if (cdata->cleaning) {
-        if (clean_socket(cdata, cdata->key_size - cdata->parsing_index) < 0) {
+        if (clean_socket(cdata, cdata->value_size - cdata->parsing_index) < 0) {
           return -1;  // No hace falta liberar cdata->key y cdata->value nunca, porque si llegue en cleaning a este punto ambos son NULL ya.
         }
       }
       else if (recv_client(cdata, cdata->value + cdata->parsing_index,
-                      cdata->value_size - cdata->parsing_index) < 0) return -1;
+                           cdata->value_size - cdata->parsing_index) < 0) return -1;
 
       if (cdata->parsing_index < cdata->value_size) return 0;
 
