@@ -125,9 +125,7 @@ int parse_request(ClientData* cdata, Cache cache) {
       
       cdata->key = dynalloc(cdata->key_size, cache); 
       if (cdata->key == NULL) {
-        // Si falla la asignacion de memoria, marcamos el comando como EBIG.
-        // Pasamos al cliente a estado cleaning, vaciando todo lo que queda en el buffer para poder volver a sincronizarnos con el final del mensaje.
-        cdata->command = EBIG;
+        // Si falla la asignacion de memoria, ponemos al cliente en modo limpieza.
         cdata->cleaning = 1;
       }
 
@@ -153,8 +151,15 @@ int parse_request(ClientData* cdata, Cache cache) {
 
       if (cdata->parsing_index < cdata->key_size) return 0;
 
-      cdata->parsing_stage = cdata->command == PUT ?
-                             PARSING_VALUE_LEN : PARSING_FINISHED;
+      if (cdata->command == PUT) {
+        cdata->parsing_stage = PARSING_VALUE_LEN;
+      }
+      else {
+        cdata->parsing_stage = PARSING_FINISHED;
+        if (cdata->cleaning) 
+          cdata->command = EBIG;
+      }
+
       cdata->parsing_index = 0;
 
       break;
