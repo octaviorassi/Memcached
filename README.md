@@ -83,4 +83,10 @@ y en la terminal que se nos abre, correr:
 
     IdClient = client:startDefault().
 
-que inicia un cliente asociado a dos servidores en la misma máquina, bindeados a los puertos 8000 y 9000 respectivamente. Luego de realizar ésto, podemos efectuar todas las opearciones que queramos sobre el cliente que acabamos de crear utilizando el ```IdClient```.
+que inicia un cliente asociado a dos servidores en la misma máquina, bindeados a los puertos 8000 y 9000 respectivamente. Luego de realizar ésto, podemos efectuar todas las opearciones que queramos sobre el cliente que acabamos de crear utilizando el ```IdClient```. Por ejemplo:
+
+    client:put(IdClient, 3, "hola").
+
+    client:stats(IdClient).
+    
+    client:quit(IdClient).
