@@ -3,8 +3,6 @@
 #include "lrunode.h"
 #include "../dynalloc/dynalloc.h"
 
-#define PRINT(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
-
 
 struct LRUNode {
     struct LRUNode* prev;
@@ -83,11 +81,6 @@ void lrunode_set_bucket_number(LRUNode node, unsigned int bucket_number) {
 }
 
 unsigned int lrunode_get_bucket_number(LRUNode node) {
-
-    // ! BORRAR
-    if (node)
-        PRINT("Bucket number calculado para el node a desalojar: %u", node->bucket_number);
-        
     return node == NULL? 0 : node->bucket_number;
 }
 

@@ -20,7 +20,6 @@ void* dynalloc(size_t sz, Cache cache) {
             return ptr;
     }
 
-    PRINT("No hay memoria suficiente. Debemos liberar memoria.");
 
     // Liberaremos el maximo entre el 20% de la memoria ocupada actual y el size del bloque a asignar por un size_factor
     size_t memory_goal = max(cache_stats_get_allocated_memory(
@@ -28,9 +27,6 @@ void* dynalloc(size_t sz, Cache cache) {
                              sz * SIZE_GOAL_FACTOR);
     size_t total_freed_memory = 0;
     ssize_t freed_memory;
-
-    PRINT("Allocated memory: %lu", cache_stats_get_allocated_memory(cache_get_cstats(cache)));
-    PRINT("Memory goal: %lu", memory_goal);
 
     int attempts = 0;
 
@@ -49,8 +45,6 @@ void* dynalloc(size_t sz, Cache cache) {
 
         total_freed_memory += freed_memory;
     }
-
-    PRINT("Memoria liberada correctamente. Total liberado: %lu", total_freed_memory);
 
     // Tanto si se logro el objetivo de memoria como si se agotaron los intentos, devolvemos directamente malloc.
     // Si no alcanza la memoria, aceptamos que devuelva NULL pues la cache debe estar sobrecargada de pedidos. 

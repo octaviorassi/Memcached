@@ -115,7 +115,6 @@ void lru_queue_node_clean(LRUNode node, LRUQueue q) {
 
 
 LRUNode lru_queue_get_least_recent(LRUQueue q) {
-  PRINT("La queue es NULL? %s.", q == NULL ? "Si" : "No");
   return (q == NULL) ? NULL : q->least_recent;
 }
 
