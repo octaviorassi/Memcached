@@ -52,18 +52,18 @@ Luego de haber compilado el ```cliente``` de erlang, podemos ejecutar el siguien
 
     make run-client
 
-Ésto nos abrirá una terminal de erlang en la que podemos comenzar a utilizar el cliente. En la terminal tenemos disponibles todos los siguientes comandos:
+Ésto nos abrirá una terminal de erlang en la que podemos comenzar a utilizar la interfaz del cliente. En la terminal tenemos disponibles todos los siguientes comandos:
 
-    client:start/1         % Inicia el cliente con una lista de servidores.
-    client:startDefault/0  % Inicia el cliente con servidores por defecto.
-    client:quit/0          % Finaliza el cliente actual.
-    client:put/2           % Pone un par clave-valor en el cliente.
-    client:get/1           % Obtiene el valor de una cierta clave.
-    client:del/1           % Elimina el valor asociada a una cierta clave.
-    client:stats/0         % Imprime las estadisticas de los servidores conectados.
-    client:status/0        % Imprime las estadisticas locales del cliente.
+    client:start/1         % Inicia un cliente con una lista de servidores.
+    client:startDefault/0  % Inicia un cliente con servidores por defecto.
+    client:quit/1          % Finaliza un cliente.
+    client:put/3           % Pone un par clave-valor en un cliente.
+    client:get/2           % Obtiene el valor de una cierta clave de un cliente.
+    client:del/2           % Elimina el valor asociada a una cierta clave de un cliente.
+    client:stats/1         % Imprime las estadisticas de los servidores conectados al cliente.
+    client:status/1        % Imprime las estadisticas locales del cliente elegido.
 
-Es importante que tanto ```start/1``` como ```startDefault/0``` no tienen efecto si ya hay un cliente corriendo. Lo mismo pasa con ```quit/0``` si no hay ningún cliente en el momento.
+Es importante aclarar que tenemos la posibilidad de crear múltiples clientes en la misma terminal de Erlang. Para aprovechar esta funcionalidad, las funciones que arrancan clientes nos devuelven un identificador que nos servirá para comunicarnos con cada uno de los clientes que tengamos corriendo.
 
 ## Ejemplo de uso básico
 
@@ -81,6 +81,6 @@ el cual nos inicia un servidor bindeado al puerto 9000, con un número predeterm
 
 y en la terminal que se nos abre, correr:
 
-    client:startDefault().
+    IdClient = client:startDefault().
 
-que inicia un cliente asociado a dos servidores en la misma máquina, bindeados a los puertos 8000 y 9000 respectivamente. Luego de realizar ésto, podemos efectuar todas las opearciones que queramos sobre el cliente.
+que inicia un cliente asociado a dos servidores en la misma máquina, bindeados a los puertos 8000 y 9000 respectivamente. Luego de realizar ésto, podemos efectuar todas las opearciones que queramos sobre el cliente que acabamos de crear utilizando el ```IdClient```.
