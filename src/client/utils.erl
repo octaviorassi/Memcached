@@ -1,5 +1,5 @@
 -module(utils).
--export([is_registered/1, create_sockets/1, binary_convert_value/1, binary_convert_key/2,
+-export([create_sockets/1, binary_convert_value/1, binary_convert_key/2,
          recv_bytes/2, create_message/1,  create_message/3, create_message/5, create_stats_message/2,
          create_status_message/3, create_servers_info/1, replace_sockets/3, delete_info/2, 
          rebalance_servers/2, get_server/2, close_server_sockets/1, modify_key_counter/3]).
@@ -191,17 +191,6 @@ create_status_message(TotalKeys, ServersInfo, InitialNumServer) ->
       StatusMessage = string:join(ServerCounterMessage, "~n"),
       StatusMessage
   end.
-  
-
-%% @doc Determina si el alias para un PID ya ha sido registrado previamente.
-%% @param PidAlias el alias cuyo registro queremos chequear.
-%% @return no si no estaba registrado, yes en caso contrario.
--spec is_registered(atom()) -> no | yes.
-is_registered(PidAlias) ->
-  case whereis(PidAlias) of
-    undefined -> no;
-    _         -> yes
-  end.
 
 
 %% @doc Dado un listado de sockets y su direccion y puerto, nos devuelve una lista con la inforamcion que iremos llevando de los sockets.
@@ -293,7 +282,7 @@ get_server(Key, ServersTable) ->
 %% @return El atom ok.
 -spec close_server_sockets([server_info()]) -> ok.
 close_server_sockets(ServersInfo) ->
-  lists:foreach(fun({ServerSocket,_,_}) -> gen_tcp:close(ServerSocket) end, ServersInfo).
+  lists:foreach(fun({_,ServerSocket,_,_,_}) -> gen_tcp:close(ServerSocket) end, ServersInfo).
 
 
 %% @doc Dada una informacion de servidor, modifica el contador que lleva por la cantidad K unicamente si coincide con el socket pasado.
