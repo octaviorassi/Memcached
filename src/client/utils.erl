@@ -33,7 +33,7 @@ recv_bytes_aux(Socket, N, Buffer) ->
     
     {ok, Message} ->
       % Seguimos recibiendo hasta llegar a 0 
-      recv_bytes_aux(Socket, N - byte_size(Message), <<Message/binary, Buffer/binary>>);
+      recv_bytes_aux(Socket, N - byte_size(Message), <<Buffer/binary, Message/binary>>);
 
     {error, _} -> serverError
   end. 
