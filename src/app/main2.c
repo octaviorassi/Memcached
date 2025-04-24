@@ -9,13 +9,13 @@
 #include "cache/cache.h"
 
 #define KEY_SIZE 12
-#define KEY_COUNT 1000
+#define KEY_COUNT 100
 #define VAL_SIZE sizeof(int)
-#define VAL_COUNT 150
+#define VAL_COUNT 100
 
 #define MEGABYTE 1000000
 #define GIGABYTE 1000 * MEGABYTE
-#define MEMORY_LIMIT 116 * MEGABYTE
+#define MEMORY_LIMIT 700 * MEGABYTE
 
 // Struct to pass multiple arguments to the thread function
 typedef struct {
@@ -36,7 +36,7 @@ void* thread_func(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     int thread_id = args->thread_id;
     Cache cache = args->cache;  
-    
+
     char* keys[KEY_COUNT];
     char* keysGet[KEY_COUNT];
     int* vals[VAL_COUNT];
@@ -86,25 +86,25 @@ void* thread_func(void* arg) {
 
 
 
-    // // Retrieve keys from the cache
-    // for (int i = 0; i < KEY_COUNT; i++) {
-    //     LookupResult lr = cache_get(keysGet[i], strlen(keysGet[i]), cache);
+    // Retrieve keys from the cache
+    for (int i = 0; i < KEY_COUNT; i++) {
+        LookupResult lr = cache_get(keysGet[i], strlen(keysGet[i]), cache);
 
-    //     /*
-    //     if (lookup_result_is_ok(lr)) {
-    //         int retrieved_value = *((int*)lookup_result_get_value(lr));
+        /*
+        if (lookup_result_is_ok(lr)) {
+            int retrieved_value = *((int*)lookup_result_get_value(lr));
 
-    //         // ! Esto puede dar segfault si ya se libero vals[i].
-    //         if (retrieved_value != *vals[i]) {
-    //             PRINT("Thread %d: cGET mismatch for key %s: expected %i, got %i", thread_id, keys[i], *vals[i], retrieved_value);
-    //         }
+            // ! Esto puede dar segfault si ya se libero vals[i].
+            if (retrieved_value != *vals[i]) {
+                PRINT("Thread %d: GET mismatch for key %s: expected %i, got %i", thread_id, keys[i], *vals[i], retrieved_value);
+            }
 
-    //         // PRINT("Thread %d: got the pair %s / %i", thread_id, keys[i], retrieved_value);
+            // PRINT("Thread %d: got the pair %s / %i", thread_id, keys[i], retrieved_value);
 
-    //     }  else {
-    //         PRINT("Thread %d: Failed to GET the key %s", thread_id, keys[i]);
-    //     } */
-    // }
+        }  else {
+            PRINT("Thread %d: Failed to GET the key %s", thread_id, keys[i]);
+        } */
+    }
 
 
     // Destroy all entries.
@@ -136,19 +136,19 @@ int main() {
 
     setbuf(stdout, NULL);
 
-    set_memory_limit(MEMORY_LIMIT);
+    // set_memory_limit(MEMORY_LIMIT);
 
     sem_init(&turnstile, 0, 1);
     sem_wait(&turnstile);
 
     // Create the cache with a larger size to handle more entries
-    Cache cache = cache_create((HashFunction)kr_hash);
+    Cache cache = cache_create(kr_hash);
     if (!cache) {
         PRINT("Failed to create cache");
         return 1;
     }
 
-    const int NUM_THREADS = 9;
+    const int NUM_THREADS = 1;
     pthread_t threads[NUM_THREADS];
     ThreadArgs thread_args[NUM_THREADS];
 
